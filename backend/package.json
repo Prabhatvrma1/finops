@@ -1,0 +1,50 @@
+{
+  "name": "cloudcostiq-backend",
+  "version": "1.0.0",
+  "description": "CloudCostIQ Backend API — REST API for cloud cost optimization platform",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest --verbose --coverage",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/ --ext .js",
+    "lint:fix": "eslint src/ --ext .js --fix",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:seed": "node src/seeders/seed.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "sequelize": "^6.37.0",
+    "pg": "^8.13.0",
+    "pg-hstore": "^2.3.4",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "helmet": "^7.1.0",
+    "cors": "^2.8.5",
+    "morgan": "^1.10.0",
+    "express-validator": "^7.2.0",
+    "express-rate-limit": "^7.4.0",
+    "dotenv": "^16.4.5",
+    "winston": "^3.14.0",
+    "swagger-ui-express": "^5.0.1",
+    "node-cron": "^3.0.3",
+    "uuid": "^10.0.0",
+    "prom-client": "^15.1.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0",
+    "nodemon": "^3.1.0",
+    "eslint": "^8.57.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/server.js",
+      "!src/seeders/**"
+    ]
+  }
+}
