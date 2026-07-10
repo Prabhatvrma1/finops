@@ -1,0 +1,133 @@
+# ============================================================================
+# CloudCostIQ — .gitignore
+# ============================================================================
+# This file tells Git which files/folders to IGNORE (not track).
+# Why? Some files are generated, contain secrets, or are environment-specific.
+# They should NEVER be committed to version control.
+# ============================================================================
+
+# --------------------------------------------------------------------------
+# Node.js (Backend & Frontend)
+# --------------------------------------------------------------------------
+# node_modules/ contains all installed npm packages. It's huge and reproducible
+# from package.json + package-lock.json, so we never commit it.
+node_modules/
+
+# Build output — these are generated files, not source code
+dist/
+build/
+.next/
+
+# Environment files — these contain secrets like API keys and DB passwords!
+# NEVER commit these. Each developer creates their own from .env.example
+.env
+.env.local
+.env.production
+.env.*.local
+
+# npm debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --------------------------------------------------------------------------
+# Python (Analytics Service)
+# --------------------------------------------------------------------------
+# Virtual environment — like node_modules, it's reproducible from requirements.txt
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+
+# Jupyter notebook checkpoints (if you experiment with models in notebooks)
+.ipynb_checkpoints/
+
+# --------------------------------------------------------------------------
+# Terraform (Infrastructure as Code)
+# --------------------------------------------------------------------------
+# .terraform/ contains downloaded provider plugins — large and reproducible
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Crash logs from Terraform
+crash.log
+crash.*.log
+
+# tfvars files may contain secrets (DB passwords, API keys)
+# Only commit .tfvars.example files with placeholder values
+*.tfvars
+!*.tfvars.example
+
+# Terraform plan files (binary, may contain secrets)
+*.tfplan
+
+# Override files — used for local testing overrides
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform lock file SHOULD be committed (it pins provider versions)
+# So we do NOT ignore .terraform.lock.hcl
+
+# --------------------------------------------------------------------------
+# Docker
+# --------------------------------------------------------------------------
+# Docker Compose override (local customizations)
+docker-compose.override.yml
+
+# --------------------------------------------------------------------------
+# IDE & Editor Files
+# --------------------------------------------------------------------------
+# VS Code settings (personal preferences, not project config)
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# JetBrains IDEs (WebStorm, PyCharm)
+.idea/
+
+# macOS Finder metadata
+.DS_Store
+
+# Windows thumbnail cache
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux temporary files
+*~
+
+# --------------------------------------------------------------------------
+# Testing & Coverage
+# --------------------------------------------------------------------------
+coverage/
+.nyc_output/
+htmlcov/
+.coverage
+.pytest_cache/
+
+# --------------------------------------------------------------------------
+# Miscellaneous
+# --------------------------------------------------------------------------
+# Log files
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# Generated reports
+reports/*.pdf
+reports/*.xlsx
+
+# SSL certificates (never commit private keys!)
+*.pem
+*.key
+*.crt
+!*.crt.example

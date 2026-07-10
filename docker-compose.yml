@@ -1,0 +1,223 @@
+# ============================================================================
+# CloudCostIQ — Docker Compose (Local Development)
+# ============================================================================
+#
+# LEARNING NOTE: Docker Compose lets you define and run MULTIPLE containers
+# as a single unit. Instead of running 6 separate "docker run" commands,
+# you write this file and run "docker-compose up" — everything starts together.
+#
+# KEY CONCEPTS:
+#   - "services" = the containers you want to run
+#   - "volumes"  = persistent storage (data survives container restarts)
+#   - "networks" = isolated communication channels between containers
+#   - "depends_on" = startup order (but NOT readiness — use healthchecks!)
+#   - "environment" = environment variables injected into the container
+#
+# ============================================================================
+
+version: '3.9'
+
+services:
+  # --------------------------------------------------------------------------
+  # PostgreSQL Database
+  # --------------------------------------------------------------------------
+  # WHY PostgreSQL? It's the most advanced open-source relational database.
+  # Great for structured data like cost records, users, budgets.
+  # In production, you'd use a managed service (AWS RDS, Azure Database, etc.)
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine    # Alpine = smaller image (~80MB vs ~400MB)
+    container_name: cloudcostiq-db
+    restart: unless-stopped       # Auto-restart if it crashes
+    environment:
+      POSTGRES_DB: cloudcostiq          # Database name
+      POSTGRES_USER: cloudcostiq        # Database user
+      POSTGRES_PASSWORD: localdev123    # ONLY for local dev! Never use in prod.
+    ports:
+      - "5432:5432"    # Maps host:container port so you can connect locally
+    volumes:
+      - postgres_data:/var/lib/postgresql/data    # Persist data across restarts
+    healthcheck:
+      # This tells Docker how to check if PostgreSQL is actually ready
+      # pg_isready is a utility that comes with PostgreSQL
+      test: ["CMD-SHELL", "pg_isready -U cloudcostiq"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cloudcostiq-network
+
+  # --------------------------------------------------------------------------
+  # Redis Cache
+  # --------------------------------------------------------------------------
+  # WHY Redis? It's an in-memory key-value store used for:
+  #   1. Caching expensive API responses (cloud cost queries take seconds)
+  #   2. Rate limiting (tracking request counts per IP)
+  #   3. Session storage (if needed)
+  # Redis is FAST because data lives in RAM, not on disk.
+  # --------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: cloudcostiq-cache
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cloudcostiq-network
+
+  # --------------------------------------------------------------------------
+  # Backend API (Node.js + Express)
+  # --------------------------------------------------------------------------
+  # This is the "brain" of the application. It:
+  #   - Handles authentication (JWT tokens)
+  #   - Serves cost data to the frontend
+  #   - Calls cloud provider APIs (AWS, Azure, GCP)
+  #   - Triggers scheduled jobs (daily cost sync)
+  # --------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloudcostiq-api
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgres://cloudcostiq:localdev123@postgres:5432/cloudcostiq
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: local-dev-jwt-secret-change-in-production
+      # Cloud API keys would go here (use .env file, not hardcoded!)
+      # AWS_ACCESS_KEY_ID: xxx
+      # AWS_SECRET_ACCESS_KEY: xxx
+      MOCK_DATA: "true"    # Use mock data when no cloud credentials
+    depends_on:
+      postgres:
+        condition: service_healthy    # Wait for DB to be READY, not just started
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src    # Hot-reload: changes in src/ auto-restart server
+    networks:
+      - cloudcostiq-network
+
+  # --------------------------------------------------------------------------
+  # Frontend Dashboard (React + Vite)
+  # --------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cloudcostiq-ui
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:4000    # Tell frontend where backend is
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src    # Hot-reload for development
+    networks:
+      - cloudcostiq-network
+
+  # --------------------------------------------------------------------------
+  # Python Analytics Service (FastAPI)
+  # --------------------------------------------------------------------------
+  # This handles the "heavy math":
+  #   - Cost forecasting (using Facebook Prophet)
+  #   - Anomaly detection (using scikit-learn)
+  #   - Report generation (PDF/Excel)
+  # It's a SEPARATE service because Python is better for ML/data science.
+  # The backend calls it via HTTP when it needs analytics.
+  # --------------------------------------------------------------------------
+  python-analytics:
+    build:
+      context: ./python
+      dockerfile: Dockerfile
+    container_name: cloudcostiq-analytics
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgres://cloudcostiq:localdev123@postgres:5432/cloudcostiq
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cloudcostiq-network
+
+  # --------------------------------------------------------------------------
+  # Prometheus (Metrics Collection)
+  # --------------------------------------------------------------------------
+  # Prometheus SCRAPES (pulls) metrics from your services at regular intervals.
+  # It stores time-series data: "at time T, metric X had value Y".
+  # Example metrics: request_count, response_time_ms, cpu_usage_percent
+  # --------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cloudcostiq-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - cloudcostiq-network
+
+  # --------------------------------------------------------------------------
+  # Grafana (Visualization & Dashboards)
+  # --------------------------------------------------------------------------
+  # Grafana reads data from Prometheus and displays it as beautiful dashboards.
+  # Think of it as: Prometheus = data collector, Grafana = data displayer.
+  # --------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cloudcostiq-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"    # Grafana default is 3000, we map to 3001 to avoid conflicts
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin    # Only for local dev!
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - cloudcostiq-network
+
+# ============================================================================
+# Volumes — Persistent storage that survives container restarts
+# ============================================================================
+# LEARNING: Without volumes, all data inside a container is LOST when it stops.
+# Volumes are like external hard drives that Docker manages for you.
+# ============================================================================
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+# ============================================================================
+# Networks — Isolated communication between containers
+# ============================================================================
+# LEARNING: Containers on the same network can talk to each other using their
+# service NAME as the hostname. So "backend" can connect to "postgres:5432"
+# even though it's a different container. Containers on DIFFERENT networks
+# can't see each other — this is a security boundary.
+# ============================================================================
+networks:
+  cloudcostiq-network:
+    driver: bridge

@@ -1,0 +1,46 @@
+# ============================================================================
+# Prometheus Configuration
+# ============================================================================
+#
+# LEARNING: Prometheus works on a PULL model — it actively "scrapes" (fetches)
+# metrics from your services at regular intervals. Each service exposes a
+# /metrics endpoint that returns data in Prometheus format.
+#
+# Example metric format:
+#   http_requests_total{method="GET", path="/api/costs", status="200"} 1523
+#   ↑ metric name       ↑ labels (dimensions)                         ↑ value
+#
+# ============================================================================
+
+global:
+  # How often Prometheus scrapes each target. 15s is good for dev.
+  # In production, 30s or 60s reduces load.
+  scrape_interval: 15s
+
+  # How often Prometheus evaluates alerting rules
+  evaluation_interval: 15s
+
+# ============================================================================
+# Scrape Configs — Tell Prometheus WHERE to collect metrics FROM
+# ============================================================================
+scrape_configs:
+
+  # Prometheus monitors itself (meta!)
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Backend API metrics
+  # The backend will expose metrics at GET /metrics using the prom-client library
+  - job_name: 'cloudcostiq-backend'
+    static_configs:
+      - targets: ['backend:4000']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # Python Analytics service metrics
+  - job_name: 'cloudcostiq-analytics'
+    static_configs:
+      - targets: ['python-analytics:8000']
+    metrics_path: /metrics
+    scrape_interval: 30s

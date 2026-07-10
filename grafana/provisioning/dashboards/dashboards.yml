@@ -1,0 +1,15 @@
+# ============================================================================
+# Grafana Dashboard Provisioning
+# ============================================================================
+apiVersion: 1
+
+providers:
+  - name: 'CloudCostIQ'
+    orgId: 1
+    folder: 'CloudCostIQ'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true

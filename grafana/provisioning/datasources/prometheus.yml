@@ -1,0 +1,17 @@
+# ============================================================================
+# Grafana Provisioning — Datasources
+# ============================================================================
+# LEARNING: "Provisioning" means Grafana auto-configures itself on startup.
+# Instead of manually clicking through the UI to add Prometheus, this file
+# does it automatically. This is "Configuration as Code" — a DevOps best practice.
+# ============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
