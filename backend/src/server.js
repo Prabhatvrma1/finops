@@ -25,6 +25,9 @@ const logger = require('./utils/logger');
 // Route imports
 const dashboardRoutes = require('./routes/dashboard');
 const infrastructureRoutes = require('./routes/infrastructure');
+const authRoutes = require('./routes/auth');
+const { errorHandler } = require('./middleware/errorHandler');
+const { swaggerUi, swaggerDocs } = require('./docs/swagger');
 
 // ============================================================================
 // Create Express Application
@@ -93,6 +96,10 @@ app.use(express.static(path.join(__dirname, '../../frontend')));
 // So dashboardRoutes' '/kpis' endpoint becomes '/api/dashboard/kpis'
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/infrastructure', infrastructureRoutes);
+app.use('/api/auth', authRoutes);
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // ============================================================================
 // Health Check Endpoint
@@ -127,17 +134,7 @@ app.get('*', (req, res) => {
 // ============================================================================
 // Global Error Handler
 // ============================================================================
-// LEARNING: Express error handlers have 4 parameters (err, req, res, next).
-// This catches any unhandled errors in route handlers and returns a
-// consistent error response instead of crashing the server.
-// eslint-disable-next-line no-unused-vars
-app.use((err, req, res, next) => {
-  logger.error('Unhandled error:', err);
-  res.status(500).json({
-    success: false,
-    error: config.env === 'development' ? err.message : 'Internal server error',
-  });
-});
+app.use(errorHandler);
 
 // ============================================================================
 // Start Server

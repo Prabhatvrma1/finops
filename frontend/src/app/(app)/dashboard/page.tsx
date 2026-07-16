@@ -2,9 +2,27 @@
 
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
+import { useQuery } from "@tanstack/react-query";
+
+const fetchDashboardData = async (endpoint: string) => {
+  const res = await fetch(`http://localhost:4000/api/dashboard/${endpoint}`);
+  if (!res.ok) throw new Error(`Failed to fetch ${endpoint}`);
+  const json = await res.json();
+  return json.data;
+};
 
 export default function DashboardPage() {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const { data: kpis, isLoading: kpisLoading } = useQuery({
+    queryKey: ['kpis'],
+    queryFn: () => fetchDashboardData('kpis')
+  });
+
+  const { data: consumers, isLoading: consumersLoading } = useQuery({
+    queryKey: ['top-consumers'],
+    queryFn: () => fetchDashboardData('top-consumers')
+  });
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -12,15 +30,17 @@ export default function DashboardPage() {
       const counters = document.querySelectorAll(".counter");
       counters.forEach((counter) => {
         const target = parseFloat(counter.getAttribute("data-target") || "0");
-        gsap.to(counter, {
-          innerHTML: target,
-          duration: 2,
-          ease: "power2.out",
-          snap: { innerHTML: 1 },
-          onUpdate: function () {
-            counter.innerHTML = Math.round(Number(this.targets()[0].innerHTML)).toLocaleString();
-          },
-        });
+        if (target > 0) {
+          gsap.to(counter, {
+            innerHTML: target,
+            duration: 2,
+            ease: "power2.out",
+            snap: { innerHTML: 1 },
+            onUpdate: function () {
+              counter.innerHTML = Math.round(Number(this.targets()[0].innerHTML)).toLocaleString();
+            },
+          });
+        }
       });
 
       // Sequential fade in for AI insights
@@ -46,36 +66,46 @@ export default function DashboardPage() {
         <div className="glass-card p-lg flex flex-col justify-between h-32 glow-effect relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 w-16 h-16 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-all"></div>
           <div className="flex justify-between items-start z-10">
-            <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">Today's Spend</span>
-            <span className="material-symbols-outlined text-primary text-[20px]">today</span>
+            <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">{kpis?.today?.label || "Today's Spend"}</span>
+            <span className="material-symbols-outlined text-primary text-[20px]">{kpis?.today?.icon || 'today'}</span>
           </div>
           <div className="z-10 flex items-baseline gap-2">
-            <span className="font-headline-xl font-bold text-on-surface">$<span className="counter" data-target="3428">0</span></span>
-            <span className="font-label-sm text-primary flex items-center"><span className="material-symbols-outlined text-[14px]">arrow_downward</span> 2.4%</span>
+            <span className="font-headline-xl font-bold text-on-surface">$<span className="counter" data-target={kpis?.today?.value || "0"}>0</span></span>
+            <span className={`font-label-sm flex items-center ${kpis?.today?.trendDirection === 'down' ? 'text-primary' : 'text-error'}`}>
+              <span className="material-symbols-outlined text-[14px]">
+                {kpis?.today?.trendDirection === 'down' ? 'arrow_downward' : 'arrow_upward'}
+              </span> 
+              {Math.abs(kpis?.today?.trend || 0)}%
+            </span>
           </div>
         </div>
 
         {/* Weekly */}
         <div className="glass-card p-lg flex flex-col justify-between h-32 relative overflow-hidden group">
           <div className="flex justify-between items-start z-10">
-            <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">7-Day Trailing</span>
-            <span className="material-symbols-outlined text-secondary text-[20px]">date_range</span>
+            <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">{kpis?.weekly?.label || "7-Day Trailing"}</span>
+            <span className="material-symbols-outlined text-secondary text-[20px]">{kpis?.weekly?.icon || 'date_range'}</span>
           </div>
           <div className="z-10 flex items-baseline gap-2">
-            <span className="font-headline-xl font-bold text-on-surface">$<span className="counter" data-target="24590">0</span></span>
-            <span className="font-label-sm text-error flex items-center"><span className="material-symbols-outlined text-[14px]">arrow_upward</span> 1.2%</span>
+            <span className="font-headline-xl font-bold text-on-surface">$<span className="counter" data-target={kpis?.weekly?.value || "0"}>0</span></span>
+            <span className={`font-label-sm flex items-center ${kpis?.weekly?.trendDirection === 'down' ? 'text-primary' : 'text-error'}`}>
+              <span className="material-symbols-outlined text-[14px]">
+                {kpis?.weekly?.trendDirection === 'down' ? 'arrow_downward' : 'arrow_upward'}
+              </span> 
+              {Math.abs(kpis?.weekly?.trend || 0)}%
+            </span>
           </div>
         </div>
 
         {/* Monthly */}
         <div className="glass-card p-lg flex flex-col justify-between h-32 relative overflow-hidden group">
           <div className="flex justify-between items-start z-10">
-            <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">MTD Total</span>
-            <span className="material-symbols-outlined text-tertiary text-[20px]">calendar_month</span>
+            <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">{kpis?.mtd?.label || "MTD Total"}</span>
+            <span className="material-symbols-outlined text-tertiary text-[20px]">{kpis?.mtd?.icon || 'calendar_month'}</span>
           </div>
           <div className="z-10 flex items-baseline gap-2">
-            <span className="font-headline-xl font-bold text-on-surface">$<span className="counter" data-target="89430">0</span></span>
-            <span className="font-label-sm text-on-surface-variant">on track</span>
+            <span className="font-headline-xl font-bold text-on-surface">$<span className="counter" data-target={kpis?.mtd?.value || "0"}>0</span></span>
+            <span className="font-label-sm text-on-surface-variant">{kpis?.mtd?.statusText || "on track"}</span>
           </div>
         </div>
 
@@ -83,10 +113,10 @@ export default function DashboardPage() {
         <div className="glass-card p-lg flex flex-col justify-between h-32 relative overflow-hidden group border-primary/30">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent z-0"></div>
           <div className="flex justify-between items-start z-10">
-            <span className="font-label-sm text-primary uppercase tracking-wider flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">auto_awesome</span> AI Forecast (EOM)</span>
+            <span className="font-label-sm text-primary uppercase tracking-wider flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">{kpis?.forecast?.icon || 'auto_awesome'}</span> {kpis?.forecast?.label || 'AI Forecast (EOM)'}</span>
           </div>
           <div className="z-10 flex items-baseline gap-2">
-            <span className="font-headline-xl font-bold text-primary text-glow">$<span className="counter" data-target="112050">0</span></span>
+            <span className="font-headline-xl font-bold text-primary text-glow">$<span className="counter" data-target={kpis?.forecast?.value || "0"}>0</span></span>
           </div>
         </div>
       </section>
@@ -181,42 +211,28 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="font-body-md text-on-surface">
-                <tr className="border-b border-white/5 hover:bg-primary/5 transition-colors group">
-                  <td className="p-4 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-error"></div>
-                    db-prod-cluster-01
-                  </td>
-                  <td className="p-4 text-on-surface-variant">RDS</td>
-                  <td className="p-4 text-right font-medium">$12,450</td>
-                  <td className="p-4 text-right text-error flex items-center justify-end gap-1"><span className="material-symbols-outlined text-[16px]">trending_up</span> +12%</td>
-                </tr>
-                <tr className="border-b border-white/5 hover:bg-primary/5 transition-colors group">
-                  <td className="p-4 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary"></div>
-                    eks-prod-nodes
-                  </td>
-                  <td className="p-4 text-on-surface-variant">EC2</td>
-                  <td className="p-4 text-right font-medium">$8,230</td>
-                  <td className="p-4 text-right text-primary flex items-center justify-end gap-1"><span className="material-symbols-outlined text-[16px]">trending_down</span> -4%</td>
-                </tr>
-                <tr className="border-b border-white/5 hover:bg-primary/5 transition-colors group">
-                  <td className="p-4 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-on-surface-variant"></div>
-                    s3-data-lake-raw
-                  </td>
-                  <td className="p-4 text-on-surface-variant">S3</td>
-                  <td className="p-4 text-right font-medium">$4,100</td>
-                  <td className="p-4 text-right text-on-surface-variant flex items-center justify-end gap-1"><span className="material-symbols-outlined text-[16px]">trending_flat</span> 0%</td>
-                </tr>
-                <tr className="hover:bg-primary/5 transition-colors group">
-                  <td className="p-4 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-secondary"></div>
-                    redis-cache-main
-                  </td>
-                  <td className="p-4 text-on-surface-variant">ElastiCache</td>
-                  <td className="p-4 text-right font-medium">$2,890</td>
-                  <td className="p-4 text-right text-secondary flex items-center justify-end gap-1"><span className="material-symbols-outlined text-[16px]">trending_down</span> -2%</td>
-                </tr>
+                {consumersLoading ? (
+                  <tr><td colSpan={4} className="p-4 text-center">Loading...</td></tr>
+                ) : consumers?.map((c: any, i: number) => {
+                  const colors = ['bg-error', 'bg-primary', 'bg-on-surface-variant', 'bg-secondary', 'bg-tertiary'];
+                  const colorClass = colors[i % colors.length];
+                  return (
+                    <tr key={i} className="border-b border-white/5 hover:bg-primary/5 transition-colors group">
+                      <td className="p-4 flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${colorClass}`}></div>
+                        {c.name}
+                      </td>
+                      <td className="p-4 text-on-surface-variant">{c.service}</td>
+                      <td className="p-4 text-right font-medium">${c.cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                      <td className={`p-4 text-right flex items-center justify-end gap-1 ${c.trendDirection === 'up' ? 'text-error' : c.trendDirection === 'down' ? 'text-primary' : 'text-on-surface-variant'}`}>
+                        <span className="material-symbols-outlined text-[16px]">
+                          {c.trendDirection === 'up' ? 'trending_up' : c.trendDirection === 'down' ? 'trending_down' : 'trending_flat'}
+                        </span> 
+                        {c.trend > 0 ? '+' : ''}{c.trend}%
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
