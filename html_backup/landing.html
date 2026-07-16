@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CloudCostIQ - Enterprise FinOps</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#ffb4a3",
+                        "secondary-container": "#115158",
+                        "on-primary-container": "#003337",
+                        "primary-fixed-dim": "#5fd7e3",
+                        "secondary-fixed-dim": "#98d0d8",
+                        "primary-fixed": "#80f4ff",
+                        "inverse-on-surface": "#07363a",
+                        "surface-variant": "#0d3a3f",
+                        "on-error": "#690005",
+                        "surface-container-low": "#002022",
+                        "on-secondary-container": "#8ac2ca",
+                        "inverse-primary": "#006970",
+                        "secondary-fixed": "#b3ecf4",
+                        "on-background": "#bfeaef",
+                        "on-error-container": "#ffdad6",
+                        "error": "#ffb4ab",
+                        "outline-variant": "#3d494a",
+                        "tertiary-container": "#d87b65",
+                        "on-tertiary-fixed": "#3d0700",
+                        "secondary": "#98d0d8",
+                        "primary-container": "#0fa4af",
+                        "on-tertiary": "#5a1b0b",
+                        "surface-tint": "#5fd7e3",
+                        "surface-container-highest": "#0d3a3f",
+                        "surface-container-high": "#002f33",
+                        "on-primary-fixed": "#002022",
+                        "surface-bright": "#133f43",
+                        "outline": "#869394",
+                        "inverse-surface": "#bfeaef",
+                        "on-secondary-fixed": "#001f23",
+                        "on-tertiary-fixed-variant": "#78301f",
+                        "on-secondary": "#00363c",
+                        "on-primary": "#00363b",
+                        "background": "#001719",
+                        "on-surface": "#bfeaef",
+                        "on-secondary-fixed-variant": "#0c4e55",
+                        "tertiary": "#ffb4a3",
+                        "primary": "#5fd7e3",
+                        "surface-dim": "#001719",
+                        "surface-container-lowest": "#001113",
+                        "on-tertiary-container": "#561708",
+                        "on-primary-fixed-variant": "#004f55",
+                        "surface-container": "#002427",
+                        "surface": "#001719",
+                        "error-container": "#93000a",
+                        "on-surface-variant": "#bcc9ca",
+                        "tertiary-fixed": "#ffdad2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "xl": "40px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "gutter": "24px",
+                        "margin-desktop": "48px",
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Space Grotesk"],
+                        "label-sm": ["Space Grotesk"],
+                        "headline-lg-mobile": ["Space Grotesk"],
+                        "title-md": ["Space Grotesk"],
+                        "headline-xl": ["Space Grotesk"],
+                        "body-lg": ["Space Grotesk"],
+                        "body-md": ["Space Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "title-md": ["20px", { "lineHeight": "1.4", "fontWeight": "500" }],
+                        "headline-xl": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Base Styles & Utility Classes for the Theme */
+        body {
+            background-color: #001719; /* background */
+            color: #bfeaef; /* on-surface */
+            overflow-x: hidden;
+        }
+
+        .glass-card {
+            background: rgba(2, 73, 80, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-primary {
+            background-color: #0FA4AF; /* primary-container */
+            color: #003337; /* on-primary-container */
+            box-shadow: 0px 0px 12px rgba(15, 164, 175, 0.4);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            box-shadow: 0px 0px 20px rgba(15, 164, 175, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid #5fd7e3; /* primary */
+            color: #5fd7e3; /* primary */
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background-color: rgba(95, 215, 227, 0.1);
+        }
+
+        /* SplitText Animation Classes */
+        .char {
+            opacity: 0;
+            transform: translateY(20px);
+            display: inline-block;
+        }
+        .word {
+            display: inline-block;
+            white-space: nowrap;
+        }
+        
+        /* 3D Card Hover Effect */
+        .tilt-container {
+            perspective: 1000px;
+        }
+        .tilt-card {
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* Subtle Background Glows */
+        .bg-glow {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            z-index: -1;
+            pointer-events: none;
+        }
+    </style>
+<!-- GSAP for Animations -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body class="antialiased min-h-screen relative font-body-md text-body-md md:font-body-lg md:text-body-lg">
+<!-- Ambient Background Glows -->
+<div class="bg-glow w-[50vw] h-[50vw] bg-primary/10 top-0 left-0 -translate-x-1/2 -translate-y-1/2"></div>
+<div class="bg-glow w-[40vw] h-[40vw] bg-secondary-container/20 bottom-0 right-0 translate-x-1/3 translate-y-1/3"></div>
+<!-- TopNavBar (Shared Component) -->
+<nav class="bg-surface/40 backdrop-blur-md docked full-width top-0 sticky z-50 border-b border-white/10 shadow-sm">
+<div class="flex justify-between items-center w-full px-lg py-sm max-w-full container mx-auto">
+<!-- Brand -->
+<div class="font-headline-lg text-headline-lg md:font-headline-lg md:text-headline-lg font-bold text-primary flex items-center gap-2 cursor-pointer active:scale-95 duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cloud</span>
+                CloudCostIQ
+            </div>
+<!-- Navigation Links (Desktop) -->
+<div class="hidden md:flex items-center gap-8">
+<!-- Example of an active state for a landing page (e.g., Overview or Home might be active, but since this is a landing page, we'll keep them inactive looking for sections) -->
+<a class="text-on-surface-variant font-medium hover:text-primary hover:bg-primary/10 transition-colors px-3 py-2 rounded-lg cursor-pointer active:scale-95 duration-200" href="#">Product</a>
+<a class="text-on-surface-variant font-medium hover:text-primary hover:bg-primary/10 transition-colors px-3 py-2 rounded-lg cursor-pointer active:scale-95 duration-200" href="#">Solutions</a>
+<a class="text-on-surface-variant font-medium hover:text-primary hover:bg-primary/10 transition-colors px-3 py-2 rounded-lg cursor-pointer active:scale-95 duration-200" href="#">Pricing</a>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-4">
+<button class="hidden md:flex btn-secondary px-6 py-2 rounded-lg font-title-md text-title-md text-sm">Log In</button>
+<button class="btn-primary px-6 py-2 rounded-lg font-title-md text-title-md text-sm font-bold">Start Free Trial</button>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="container mx-auto px-margin-mobile md:px-margin-desktop py-xl flex flex-col gap-[120px]">
+<!-- Hero Section -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-center min-h-[716px] pt-xl">
+<!-- Left: Typography & CTAs -->
+<div class="lg:col-span-6 flex flex-col gap-lg z-10">
+<h1 class="font-headline-xl text-headline-xl md:text-[64px] leading-[1.05] font-extrabold text-on-surface" id="hero-heading">
+                    Understand.<br/>
+                    Optimize.<br/>
+<span class="text-primary">Reduce.</span><br/>
+                    Cloud Costs.
+                </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-lg mt-4">
+                    Enterprise-grade FinOps intelligence. Gain crystal-clear visibility into your multicloud spend, automate optimizations, and align engineering with finance.
+                </p>
+<div class="flex flex-wrap gap-4 mt-8">
+<button class="btn-primary px-8 py-4 rounded-lg font-title-md text-title-md text-base flex items-center gap-2">
+                        Get Started
+                        <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+<button class="btn-secondary px-8 py-4 rounded-lg font-title-md text-title-md text-base flex items-center gap-2">
+                        View Demo
+                        <span class="material-symbols-outlined text-sm">play_circle</span>
+</button>
+</div>
+<!-- Social Proof / Logos -->
+<div class="mt-xl pt-lg border-t border-white/5">
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-4 uppercase tracking-wider">Trusted by innovative teams</p>
+<div class="flex gap-8 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+<!-- Placeholder logos using material symbols for demo -->
+<span class="material-symbols-outlined text-3xl">api</span>
+<span class="material-symbols-outlined text-3xl">dns</span>
+<span class="material-symbols-outlined text-3xl">database</span>
+<span class="material-symbols-outlined text-3xl">memory</span>
+</div>
+</div>
+</div>
+<!-- Right: 3D Glass Dashboard Preview -->
+<div class="lg:col-span-6 tilt-container h-full relative flex justify-center items-center mt-xl lg:mt-0">
+<!-- Decorative background ring -->
+<div class="absolute w-[400px] h-[400px] border border-primary/20 rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+<div class="absolute w-[300px] h-[300px] border border-secondary/10 rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-dashed"></div>
+<!-- The 3D Card -->
+<div class="tilt-card glass-card rounded-xl p-lg w-full max-w-md relative z-10 shadow-2xl">
+<!-- Top Bar of Mockup -->
+<div class="flex justify-between items-center mb-lg border-b border-white/5 pb-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">dashboard</span>
+<span class="font-title-md text-title-md text-on-surface">Cost Overview</span>
+</div>
+<span class="px-2 py-1 rounded bg-primary/10 text-primary font-label-sm text-label-sm">Live</span>
+</div>
+<!-- Main Stat -->
+<div class="mb-lg">
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-1">Total Month-to-Date Spend</p>
+<div class="flex items-end gap-3">
+<span class="font-headline-lg text-headline-lg text-on-surface font-bold">$124,592</span>
+<span class="text-error font-body-md text-body-md flex items-center mb-1">
+<span class="material-symbols-outlined text-sm">trending_up</span> 4.2%
+                            </span>
+</div>
+</div>
+<!-- Mini Chart Area (Mocked with div bars) -->
+<div class="h-32 flex items-end gap-2 mb-lg w-full border-b border-l border-white/10 p-2">
+<div class="w-1/6 bg-secondary-container/50 rounded-t h-1/2 hover:bg-primary/40 transition-colors cursor-pointer"></div>
+<div class="w-1/6 bg-secondary-container/50 rounded-t h-2/3 hover:bg-primary/40 transition-colors cursor-pointer"></div>
+<div class="w-1/6 bg-secondary-container/50 rounded-t h-1/3 hover:bg-primary/40 transition-colors cursor-pointer"></div>
+<div class="w-1/6 bg-secondary-container/50 rounded-t h-4/5 hover:bg-primary/40 transition-colors cursor-pointer"></div>
+<div class="w-1/6 bg-primary/50 rounded-t h-full hover:bg-primary/80 transition-colors cursor-pointer relative group">
+<!-- Tooltip -->
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-white/10">$28k</div>
+</div>
+<div class="w-1/6 bg-secondary-container/50 rounded-t h-[90%] hover:bg-primary/40 transition-colors cursor-pointer"></div>
+</div>
+<!-- Action List -->
+<div class="space-y-3">
+<div class="flex items-center justify-between p-3 rounded-lg bg-surface-container/50 hover:bg-surface-container transition-colors border border-white/5 cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">memory</span>
+<span class="font-body-md text-body-md text-sm">Unattached EBS Volumes</span>
+</div>
+<span class="text-primary font-bold text-sm">-$1,240</span>
+</div>
+<div class="flex items-center justify-between p-3 rounded-lg bg-surface-container/50 hover:bg-surface-container transition-colors border border-white/5 cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">database</span>
+<span class="font-body-md text-body-md text-sm">Idle RDS Instances</span>
+</div>
+<span class="text-primary font-bold text-sm">-$890</span>
+</div>
+</div>
+</div>
+<!-- Floating Elements around the card for depth -->
+<div class="absolute -right-8 top-1/4 glass-card p-3 rounded-lg flex items-center gap-2 z-20 shadow-lg animate-[bounce_4s_infinite]">
+<span class="material-symbols-outlined text-primary">auto_awesome</span>
+<span class="font-label-sm text-label-sm text-on-surface">AI Suggested</span>
+</div>
+<div class="absolute -left-4 bottom-1/4 glass-card p-3 rounded-lg flex items-center gap-2 z-20 shadow-lg animate-[bounce_5s_infinite_reverse]">
+<span class="material-symbols-outlined text-secondary">security</span>
+<span class="font-label-sm text-label-sm text-on-surface">Compliance OK</span>
+</div>
+</div>
+</section>
+<!-- Features Bento Grid -->
+<section class="py-xl">
+<div class="text-center mb-xl">
+<h2 class="font-headline-lg text-headline-lg text-on-surface mb-4">Deep Intelligence for Modern Cloud Architectures</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">Stop guessing. Start optimizing. CloudCostIQ provides granular insights and automated actions to keep your cloud economics healthy.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-gutter max-w-6xl mx-auto">
+<!-- Large Feature Card 1 -->
+<div class="md:col-span-2 md:row-span-2 glass-card rounded-xl p-lg flex flex-col group relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+<div class="w-12 h-12 rounded-full bg-primary-container/20 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary text-2xl">insights</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface mb-2">Predictive Forecasting</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-8 flex-grow">
+                        Utilize advanced machine learning models to predict future spend based on historical trends, seasonality, and application growth. Never be surprised by a bill again.
+                    </p>
+<!-- Decorative Graphic -->
+<div class="h-32 w-full mt-auto relative border-t border-white/5 pt-4">
+<!-- Simulated Sine Wave/Trend line -->
+<div class="absolute inset-0 top-4 overflow-hidden flex items-end opacity-70">
+<svg class="w-full h-full stroke-primary fill-none stroke-[0.5]" preserveaspectratio="none" viewbox="0 0 100 30">
+<path d="M0,20 Q10,10 20,20 T40,20 T60,20 T80,10 T100,20"></path>
+</svg>
+<svg class="w-full h-full stroke-secondary absolute top-0 left-0 fill-none stroke-[0.5] opacity-50" preserveaspectratio="none" viewbox="0 0 100 30">
+<path d="M0,25 Q15,15 30,25 T60,25 T90,15 T100,25"></path>
+</svg>
+</div>
+</div>
+</div>
+<!-- Smaller Feature Card 1 -->
+<div class="md:col-span-1 md:row-span-1 glass-card rounded-xl p-lg group hover:border-primary/30 transition-colors">
+<div class="w-10 h-10 rounded-full bg-secondary-container/30 flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-secondary text-xl">auto_fix_high</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface text-base mb-2">Automated Rightsizing</h3>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm">Continuously analyze CPU and memory metrics to recommend exact instance types.</p>
+</div>
+<!-- Smaller Feature Card 2 -->
+<div class="md:col-span-1 md:row-span-1 glass-card rounded-xl p-lg group hover:border-primary/30 transition-colors">
+<div class="w-10 h-10 rounded-full bg-tertiary-container/20 flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-tertiary text-xl">policy</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface text-base mb-2">Guardrails &amp; Budgets</h3>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm">Set strict spending limits per team or environment with automated alert triggers.</p>
+</div>
+<!-- Medium Feature Card (Spans 2) -->
+<div class="md:col-span-2 md:row-span-1 glass-card rounded-xl p-lg flex items-center gap-6 group hover:border-primary/30 transition-colors">
+<div class="flex-grow">
+<div class="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-primary text-xl">hub</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface text-base mb-2">Multi-Cloud Unified View</h3>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm">AWS, Azure, and GCP normalized into a single, cohesive reporting structure.</p>
+</div>
+<!-- Small visual element -->
+<div class="w-24 h-24 rounded-full border-[4px] border-surface-container-high relative flex-shrink-0 flex items-center justify-center">
+<div class="absolute inset-0 border-[4px] border-primary rounded-full border-t-transparent -rotate-45"></div>
+<span class="font-label-sm text-label-sm text-on-surface">100%</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer (Shared Component) -->
+<footer class="bg-surface-container-lowest relative bottom-0 w-full border-t border-outline-variant/50 flex justify-between items-center px-margin-desktop py-lg mt-xl flex-col md:flex-row gap-4 md:gap-0">
+<div class="font-label-sm text-label-sm font-bold text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">cloud</span>
+            CloudCostIQ
+        </div>
+<div class="flex gap-6">
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors underline-offset-4 hover:underline" href="#">API Docs</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors underline-offset-4 hover:underline" href="#">Pricing</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors underline-offset-4 hover:underline" href="#">Security</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors underline-offset-4 hover:underline" href="#">Terms</a>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">
+            © 2024 CloudCostIQ Inc. All rights reserved.
+        </div>
+</footer>
+<!-- Scripts for Interactions -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // 1. Simple SplitText Animation Implementation without paid plugins
+            const heading = document.getElementById('hero-heading');
+            if (heading) {
+                // Keep the HTML structure, just wrap text nodes in spans
+                const wrapTextNodes = (element) => {
+                    const childNodes = Array.from(element.childNodes);
+                    element.innerHTML = ''; // Clear
+                    
+                    childNodes.forEach(node => {
+                        if (node.nodeType === 3) { // Text node
+                            const text = node.nodeValue;
+                            const words = text.split(/(\s+)/); // Split by whitespace keeping the whitespace
+                            
+                            words.forEach(word => {
+                                if (word.trim() === '') {
+                                    element.appendChild(document.createTextNode(word));
+                                } else {
+                                    const wordSpan = document.createElement('span');
+                                    wordSpan.className = 'word';
+                                    
+                                    // Split into chars
+                                    const chars = word.split('');
+                                    chars.forEach(char => {
+                                        const charSpan = document.createElement('span');
+                                        charSpan.className = 'char';
+                                        charSpan.textContent = char;
+                                        wordSpan.appendChild(charSpan);
+                                    });
+                                    element.appendChild(wordSpan);
+                                }
+                            });
+                        } else if (node.nodeType === 1) { // Element node (like <br> or <span>)
+                            if (node.tagName.toLowerCase() === 'br') {
+                                element.appendChild(node.cloneNode());
+                            } else {
+                                // If it's the span.text-primary, process its children recursively
+                                const newEl = node.cloneNode(false);
+                                element.appendChild(newEl);
+                                wrapTextNodes(node); // Modifies original node
+                                newEl.innerHTML = node.innerHTML; // Copy processed content
+                            }
+                        }
+                    });
+                };
+
+                // Create a temporary clone to process to avoid messing up live DOM during processing
+                const clone = heading.cloneNode(true);
+                wrapTextNodes(clone);
+                heading.innerHTML = clone.innerHTML;
+
+                // Animate chars
+                const chars = heading.querySelectorAll('.char');
+                gsap.to(chars, {
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.8,
+                    stagger: 0.02,
+                    ease: "power3.out",
+                    delay: 0.2
+                });
+            }
+
+            // 2. 3D Tilt Effect for the Hero Card
+            const tiltContainer = document.querySelector('.tilt-container');
+            const tiltCard = document.querySelector('.tilt-card');
+
+            if (tiltContainer && tiltCard) {
+                tiltContainer.addEventListener('mousemove', (e) => {
+                    const rect = tiltContainer.getBoundingClientRect();
+                    const x = e.clientX - rect.left; // x position within the element
+                    const y = e.clientY - rect.top;  // y position within the element
+                    
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    
+                    const rotateX = ((y - centerY) / centerY) * -10; // Max rotation 10deg
+                    const rotateY = ((x - centerX) / centerX) * 10;
+                    
+                    tiltCard.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+                });
+
+                tiltContainer.addEventListener('mouseleave', () => {
+                    tiltCard.style.transform = `rotateX(0deg) rotateY(0deg)`;
+                    tiltCard.style.transition = 'transform 0.5s ease-out';
+                });
+                
+                tiltContainer.addEventListener('mouseenter', () => {
+                    tiltCard.style.transition = 'transform 0.1s ease-out';
+                });
+            }
+            
+            // Fade in other elements
+            gsap.from("p, button, .tilt-container", {
+                opacity: 0,
+                y: 20,
+                duration: 1,
+                stagger: 0.1,
+                ease: "power2.out",
+                delay: 0.8
+            });
+        });
+    </script>
+</body></html>
