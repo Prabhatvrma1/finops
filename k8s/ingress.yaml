@@ -1,0 +1,48 @@
+# ============================================================================
+# CloudCostIQ — Ingress (NGINX Ingress Controller)
+# ============================================================================
+# Routes external traffic to the correct internal service:
+#   / → frontend (Next.js)
+#   /api → backend (Express)
+#   /api/ml → python-analytics (FastAPI)
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cloudcostiq-ingress
+  namespace: cloudcostiq
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - cloudcostiq.example.com
+      secretName: cloudcostiq-tls
+  rules:
+    - host: cloudcostiq.example.com
+      http:
+        paths:
+          - path: /api/ml
+            pathType: Prefix
+            backend:
+              service:
+                name: cloudcostiq-analytics
+                port:
+                  number: 8000
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: cloudcostiq-backend
+                port:
+                  number: 4000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cloudcostiq-frontend
+                port:
+                  number: 3000

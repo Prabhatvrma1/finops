@@ -28,6 +28,29 @@ const infrastructureRoutes = require('./routes/infrastructure');
 const authRoutes = require('./routes/auth');
 const { errorHandler } = require('./middleware/errorHandler');
 const { swaggerUi, swaggerDocs } = require('./docs/swagger');
+const promClient = require('prom-client');
+
+// ============================================================================
+// Metrics Collection Setup
+// ============================================================================
+const register = new promClient.Registry();
+promClient.collectDefaultMetrics({ register });
+
+// Custom metrics
+const httpRequestDurationMicroseconds = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'code'],
+  buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10]
+});
+register.registerMetric(httpRequestDurationMicroseconds);
+
+const httpRequestTotal = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status']
+});
+register.registerMetric(httpRequestTotal);
 
 // ============================================================================
 // Create Express Application
@@ -77,9 +100,30 @@ app.use(express.urlencoded({ extended: true }));
 // LEARNING: Morgan logs every HTTP request. The 'dev' format shows:
 //   GET /api/dashboard/kpis 200 12ms - 1.2kb
 // This is invaluable for debugging. In production, use 'combined' format.
+// --- HTTP Request Logging & Metrics ---
 app.use(morgan('dev', {
   stream: { write: (message) => logger.info(message.trim()) },
 }));
+
+// Middleware to record metrics for each request
+app.use((req, res, next) => {
+  const startEpoch = Date.now();
+  res.on('finish', () => {
+    const responseTimeInSeconds = (Date.now() - startEpoch) / 1000;
+    
+    // Clean route path (to avoid high cardinality like /api/users/1234 -> /api/users/:id)
+    const route = req.route ? req.route.path : req.path;
+    
+    httpRequestDurationMicroseconds
+      .labels(req.method, route, res.statusCode)
+      .observe(responseTimeInSeconds);
+      
+    httpRequestTotal
+      .labels(req.method, route, res.statusCode)
+      .inc();
+  });
+  next();
+});
 
 // ============================================================================
 // Serve Frontend Static Files
@@ -100,6 +144,15 @@ app.use('/api/auth', authRoutes);
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+// ============================================================================
+// Prometheus Metrics Endpoint
+// ============================================================================
+// Exposed for Prometheus to scrape
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
 
 // ============================================================================
 // Health Check Endpoint

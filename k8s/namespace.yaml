@@ -1,0 +1,10 @@
+# ============================================================================
+# CloudCostIQ — Kubernetes Namespace
+# ============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudcostiq
+  labels:
+    app.kubernetes.io/name: cloudcostiq
+    app.kubernetes.io/managed-by: kubectl

@@ -1,0 +1,81 @@
+# ============================================================================
+# CloudCostIQ — Backend Deployment & Service
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudcostiq-backend
+  namespace: cloudcostiq
+  labels:
+    app: cloudcostiq-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudcostiq-backend
+  template:
+    metadata:
+      labels:
+        app: cloudcostiq-backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: backend
+          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/cloudcostiq/backend:latest
+          ports:
+            - containerPort: 4000
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "4000"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cloudcostiq-secrets
+                  key: DATABASE_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cloudcostiq-secrets
+                  key: JWT_SECRET
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cloudcostiq-secrets
+                  key: REDIS_URL
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 4000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudcostiq-backend
+  namespace: cloudcostiq
+spec:
+  selector:
+    app: cloudcostiq-backend
+  ports:
+    - port: 4000
+      targetPort: 4000
+  type: ClusterIP

@@ -1,0 +1,67 @@
+# ============================================================================
+# CloudCostIQ — Python Analytics Deployment & Service
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudcostiq-analytics
+  namespace: cloudcostiq
+  labels:
+    app: cloudcostiq-analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudcostiq-analytics
+  template:
+    metadata:
+      labels:
+        app: cloudcostiq-analytics
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: analytics
+          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/cloudcostiq/python-analytics:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cloudcostiq-secrets
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudcostiq-analytics
+  namespace: cloudcostiq
+spec:
+  selector:
+    app: cloudcostiq-analytics
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP

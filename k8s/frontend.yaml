@@ -1,0 +1,60 @@
+# ============================================================================
+# CloudCostIQ — Frontend Deployment & Service
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudcostiq-frontend
+  namespace: cloudcostiq
+  labels:
+    app: cloudcostiq-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudcostiq-frontend
+  template:
+    metadata:
+      labels:
+        app: cloudcostiq-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/cloudcostiq/frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: "http://cloudcostiq-backend:4000"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudcostiq-frontend
+  namespace: cloudcostiq
+spec:
+  selector:
+    app: cloudcostiq-frontend
+  ports:
+    - port: 3000
+      targetPort: 3000
+  type: ClusterIP

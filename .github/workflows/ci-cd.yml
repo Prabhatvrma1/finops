@@ -1,0 +1,242 @@
+# ============================================================================
+# CloudCostIQ — CI/CD Pipeline (GitHub Actions)
+# ============================================================================
+# Triggers on push to main and pull requests.
+# Stages: Lint → Test → Build Docker → Push to ECR → Deploy to K8s
+# ============================================================================
+
+name: CloudCostIQ CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER: cloudcostiq-dev
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ==========================================================================
+  # Stage 1: Lint & Type Check
+  # ==========================================================================
+  lint:
+    name: "🔍 Lint & Type Check"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Lint Backend
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm run lint --if-present
+
+      - name: Lint Frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run lint --if-present
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Lint Python
+        working-directory: ./python
+        run: |
+          pip install flake8
+          flake8 app/ --max-line-length=120 --ignore=E501,W503
+
+  # ==========================================================================
+  # Stage 2: Test
+  # ==========================================================================
+  test:
+    name: "🧪 Test"
+    runs-on: ubuntu-latest
+    needs: lint
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cloudcostiq_test
+          POSTGRES_USER: cloudcostiq
+          POSTGRES_PASSWORD: testpassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Test Backend
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgres://cloudcostiq:testpassword@localhost:5432/cloudcostiq_test
+          JWT_SECRET: test-jwt-secret
+          NODE_ENV: test
+        run: |
+          npm ci
+          npm test --if-present
+
+      - name: Build Frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Test Python Analytics
+        working-directory: ./python
+        env:
+          DATABASE_URL: postgres://cloudcostiq:testpassword@localhost:5432/cloudcostiq_test
+        run: |
+          pip install -r requirements.txt
+          python -c "from app.ml.forecaster import generate_forecast; print('Forecaster OK')"
+          python -c "from app.ml.anomaly_detector import detect_anomalies; print('Anomaly Detector OK')"
+
+  # ==========================================================================
+  # Stage 3: Build & Push Docker Images
+  # ==========================================================================
+  build:
+    name: "🐳 Build & Push Images"
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push Backend
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/cloudcostiq/backend:$IMAGE_TAG -t $REGISTRY/cloudcostiq/backend:latest ./backend
+          docker push $REGISTRY/cloudcostiq/backend:$IMAGE_TAG
+          docker push $REGISTRY/cloudcostiq/backend:latest
+
+      - name: Build & Push Frontend
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/cloudcostiq/frontend:$IMAGE_TAG -t $REGISTRY/cloudcostiq/frontend:latest ./frontend
+          docker push $REGISTRY/cloudcostiq/frontend:$IMAGE_TAG
+          docker push $REGISTRY/cloudcostiq/frontend:latest
+
+      - name: Build & Push Python Analytics
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/cloudcostiq/python-analytics:$IMAGE_TAG -t $REGISTRY/cloudcostiq/python-analytics:latest ./python
+          docker push $REGISTRY/cloudcostiq/python-analytics:$IMAGE_TAG
+          docker push $REGISTRY/cloudcostiq/python-analytics:latest
+
+  # ==========================================================================
+  # Stage 4: Deploy to Kubernetes
+  # ==========================================================================
+  deploy:
+    name: "🚀 Deploy to EKS"
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Deploy to Kubernetes
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Apply namespace and secrets
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/secrets.yaml
+
+          # Update image tags in manifests and apply
+          sed -i "s|ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com|$REGISTRY|g" k8s/backend.yaml k8s/frontend.yaml k8s/python-analytics.yaml
+          sed -i "s|:latest|:$IMAGE_TAG|g" k8s/backend.yaml k8s/frontend.yaml k8s/python-analytics.yaml
+
+          kubectl apply -f k8s/backend.yaml
+          kubectl apply -f k8s/frontend.yaml
+          kubectl apply -f k8s/python-analytics.yaml
+          kubectl apply -f k8s/ingress.yaml
+          kubectl apply -f k8s/hpa.yaml
+
+          # Wait for rollout
+          kubectl rollout status deployment/cloudcostiq-backend -n cloudcostiq --timeout=300s
+          kubectl rollout status deployment/cloudcostiq-frontend -n cloudcostiq --timeout=300s
+          kubectl rollout status deployment/cloudcostiq-analytics -n cloudcostiq --timeout=300s
+
+      - name: Notify Slack
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            CloudCostIQ deployment ${{ job.status }}!
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
