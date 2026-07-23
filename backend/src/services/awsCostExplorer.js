@@ -1,4 +1,4 @@
-const { CostExplorerClient, GetCostAndUsageCommand, GetCostForecastCommand } = require("@aws-sdk/client-cost-explorer");
+const { CostExplorerClient, GetCostAndUsageCommand } = require("@aws-sdk/client-cost-explorer");
 const logger = require('../utils/logger');
 const config = require('../config');
 

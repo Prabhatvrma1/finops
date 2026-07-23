@@ -45,10 +45,10 @@ const seedDatabase = async () => {
       for (const res of resources) {
         // Base cost ranges depending on service
         let baseCost = 0;
-        if (res.service === 'RDS') baseCost = rand(300, 500);
-        else if (res.service === 'EC2' || res.service === 'AKS') baseCost = rand(200, 400);
-        else if (res.service === 'S3') baseCost = rand(100, 150);
-        else baseCost = rand(50, 100);
+        if (res.service === 'RDS') {baseCost = rand(300, 500);}
+        else if (res.service === 'EC2' || res.service === 'AKS') {baseCost = rand(200, 400);}
+        else if (res.service === 'S3') {baseCost = rand(100, 150);}
+        else {baseCost = rand(50, 100);}
 
         recordsToCreate.push({
           date: dateStr,

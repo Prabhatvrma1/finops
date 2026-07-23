@@ -1,7 +1,7 @@
 const logger = require('../utils/logger');
 const config = require('../config');
 
-exports.errorHandler = (err, req, res, next) => {
+exports.errorHandler = (err, req, res, _next) => {
   logger.error('Unhandled error:', err);
   
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;

@@ -14,7 +14,7 @@ const fetchDashboardData = async (endpoint: string) => {
 export default function DashboardPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data: kpis, isLoading: kpisLoading } = useQuery({
+  const { data: kpis } = useQuery({
     queryKey: ['kpis'],
     queryFn: () => fetchDashboardData('kpis')
   });
@@ -213,7 +213,7 @@ export default function DashboardPage() {
               <tbody className="font-body-md text-on-surface">
                 {consumersLoading ? (
                   <tr><td colSpan={4} className="p-4 text-center">Loading...</td></tr>
-                ) : consumers?.map((c: any, i: number) => {
+                ) : consumers?.map((c: { name: string; service: string; cost: number; trendDirection: string; trend: number }, i: number) => {
                   const colors = ['bg-error', 'bg-primary', 'bg-on-surface-variant', 'bg-secondary', 'bg-tertiary'];
                   const colorClass = colors[i % colors.length];
                   return (

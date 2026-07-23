@@ -1,5 +1,5 @@
 const awsCostExplorer = require('../services/awsCostExplorer');
-const { Resource, CostRecord, sequelize } = require('../models');
+const { Resource, CostRecord } = require('../models');
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 
@@ -33,12 +33,12 @@ async function syncCloudData() {
         const region = group.Keys[1];
         const amount = parseFloat(group.Metrics.UnblendedCost.Amount);
         
-        if (amount <= 0) continue; // Skip zero-cost rows
+        if (amount <= 0) {continue;} // Skip zero-cost rows
 
         // Find or create the corresponding Resource in our DB
         // In a real app, AWS might return resource-level ARNs if enabled.
         // For this demo, we group by Service and treat the service as the "Resource".
-        let [resource] = await Resource.findOrCreate({
+        const [resource] = await Resource.findOrCreate({
           where: { name: serviceName, region: region },
           defaults: {
             id: uuidv4(),
@@ -72,7 +72,7 @@ async function syncCloudData() {
           await record.save();
         }
         
-        if (created) recordsCreated++;
+        if (created) {recordsCreated++;}
       }
     }
     

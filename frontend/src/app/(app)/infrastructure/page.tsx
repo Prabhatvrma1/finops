@@ -102,10 +102,10 @@ export default function InfrastructurePage() {
                 <span className="text-tertiary-container">Modified</span>
               </div>
               <div className="p-3 font-mono text-sm overflow-x-auto whitespace-pre">
-                <span className="text-on-surface-variant">  allocated_storage = 20{"\n"}</span>
-                <span className="text-error bg-error/10 block px-1 -mx-1">- instance_class    = "db.t3.micro"{"\n"}</span>
-                <span className="text-primary bg-primary/10 block px-1 -mx-1">+ instance_class    = "db.t3.medium"{"\n"}</span>
-                <span className="text-on-surface-variant">  engine            = "postgres"</span>
+                <span className="text-on-surface-variant">{`  allocated_storage = 20\n`}</span>
+                <span className="text-error bg-error/10 block px-1 -mx-1">{`- instance_class    = "db.t3.micro"\n`}</span>
+                <span className="text-primary bg-primary/10 block px-1 -mx-1">{`+ instance_class    = "db.t3.medium"\n`}</span>
+                <span className="text-on-surface-variant">{`  engine            = "postgres"`}</span>
               </div>
             </div>
 
@@ -116,7 +116,7 @@ export default function InfrastructurePage() {
                 <span className="text-tertiary-container">Modified</span>
               </div>
               <div className="p-3 font-mono text-sm overflow-x-auto whitespace-pre">
-                <span className="text-on-surface-variant">  bucket = "prod-data-lake-01"{"\n"}</span>
+                <span className="text-on-surface-variant">{`  bucket = "prod-data-lake-01"\n`}</span>
                 <span className="text-on-surface-variant">  versioning {"{"}{"\n"}</span>
                 <span className="text-error bg-error/10 block px-1 -mx-1">-   enabled = false{"\n"}</span>
                 <span className="text-primary bg-primary/10 block px-1 -mx-1">+   enabled = true{"\n"}</span>
