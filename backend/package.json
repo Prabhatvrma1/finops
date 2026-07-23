@@ -14,6 +14,7 @@
     "db:seed": "node src/seeders/seed.js"
   },
   "dependencies": {
+    "@aws-sdk/client-cost-explorer": "^3.1091.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
