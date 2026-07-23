@@ -194,8 +194,9 @@ app.use(errorHandler);
 // ============================================================================
 const PORT = config.port;
 
-app.listen(PORT, () => {
-  logger.info(`
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    logger.info(`
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
 ║   ☁️  CloudCostIQ API Server                                 ║
@@ -208,7 +209,8 @@ app.listen(PORT, () => {
 ║   🌍 Environment: ${config.env}                          ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
-  `);
-});
+    `);
+  });
+}
 
 module.exports = app;
