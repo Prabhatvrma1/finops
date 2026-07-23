@@ -15,9 +15,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "service": "ml-analytics"}
+
 
 @app.get("/api/ml/forecast")
 def get_forecast(days: int = 30, db: Session = Depends(database.get_db)):
@@ -25,6 +27,7 @@ def get_forecast(days: int = 30, db: Session = Depends(database.get_db)):
     records = db.query(models.CostRecord).all()
     forecast = forecaster.generate_forecast(records, days_to_predict=days)
     return {"success": True, "data": forecast}
+
 
 @app.get("/api/ml/anomalies")
 def get_anomalies(db: Session = Depends(database.get_db)):

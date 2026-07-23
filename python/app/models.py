@@ -4,6 +4,7 @@ from sqlalchemy.dialects.postgresql import UUID
 
 Base = declarative_base()
 
+
 class CostRecord(Base):
     __tablename__ = "CostRecord"
 

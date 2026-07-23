@@ -1,6 +1,7 @@
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 
+
 def detect_anomalies(records):
     """
     Uses Isolation Forest to detect anomalous cost spikes in daily totals.

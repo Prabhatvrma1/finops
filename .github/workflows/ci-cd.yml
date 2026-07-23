@@ -129,7 +129,7 @@ jobs:
     name: "🐳 Build & Push Images"
     runs-on: ubuntu-latest
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.AWS_ROLE_ARN != ''
 
     permissions:
       id-token: write
@@ -182,7 +182,7 @@ jobs:
     name: "🚀 Deploy to EKS"
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.AWS_ROLE_ARN != ''
 
     permissions:
       id-token: write

@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from datetime import timedelta
 
+
 def generate_forecast(records, days_to_predict=30):
     """
     Given a list of SQLAlchemy CostRecord objects, predict future costs.
