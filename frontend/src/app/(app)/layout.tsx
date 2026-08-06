@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -76,7 +77,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <span className="material-symbols-outlined">settings</span>
             </button>
             <div className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/50 ml-sm cursor-pointer hover:border-primary transition-colors">
-              <img className="w-full h-full object-cover" alt="Avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAHwtLH65gGkfpufI69AFrCv3tJeWeuZXrV0Uf0MycBPWRchOGDQKzrAoNLqNMU06U9HtXkxEKpbzLBY8eS94i0aKoAn9V2a_wWtHdCOC2Ip1OfH_K_wLTt4N6MHb_MQwAsSn0LbnyF3miVITmx_kv3MdqCKr3YCRaEx3XGQmKXl2msJgnyfO__nSUVen4cHc6ngsK9pT-JwBiMcA4357PDXgsCcfyCk8PEqXjMz5t3o-lLjsL8qFclZw" />
+              <Image className="w-full h-full object-cover" alt="Avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAHwtLH65gGkfpufI69AFrCv3tJeWeuZXrV0Uf0MycBPWRchOGDQKzrAoNLqNMU06U9HtXkxEKpbzLBY8eS94i0aKoAn9V2a_wWtHdCOC2Ip1OfH_K_wLTt4N6MHb_MQwAsSn0LbnyF3miVITmx_kv3MdqCKr3YCRaEx3XGQmKXl2msJgnyfO__nSUVen4cHc6ngsK9pT-JwBiMcA4357PDXgsCcfyCk8PEqXjMz5t3o-lLjsL8qFclZw" width={32} height={32} />
             </div>
           </div>
         </header>

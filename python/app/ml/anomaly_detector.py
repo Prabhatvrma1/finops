@@ -9,9 +9,9 @@ def detect_anomalies(records):
     if not records or len(records) < 10:
         return []
 
-    df = pd.DataFrame([{ "date": r.date, "cost": r.cost } for r in records])
+    df = pd.DataFrame([{"date": r.date, "cost": r.cost} for r in records])
     df['date'] = pd.to_datetime(df['date'])
-    
+
     daily_df = df.groupby('date')['cost'].sum().reset_index()
     daily_df = daily_df.sort_values('date')
 
