@@ -28,7 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="material-symbols-outlined">insights</span>
             <span className="font-body-md">Infrastructure</span>
           </Link>
-          <Link href="#" className="text-on-surface-variant hover:text-on-surface hover:bg-secondary-container/20 px-4 py-3 flex items-center gap-3 transition-all rounded-lg cursor-pointer duration-300">
+          <Link href="/dashboard" className={`${pathname === '/dashboard' ? 'bg-primary-container text-on-primary-container' : 'text-on-surface-variant hover:text-on-surface hover:bg-secondary-container/20'} px-4 py-3 flex items-center gap-3 transition-all rounded-lg cursor-pointer duration-300`}>
             <span className="material-symbols-outlined">auto_awesome</span>
             <span className="font-body-md">Optimization</span>
           </Link>
@@ -42,11 +42,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             Upgrade Plan
           </button>
           <div className="mt-sm space-y-xs">
-            <Link href="#" className="text-on-surface-variant hover:text-on-surface hover:bg-secondary-container/20 px-4 py-2 flex items-center gap-3 transition-all rounded-lg cursor-pointer duration-300">
+            <a href="http://localhost:4000/api-docs" target="_blank" rel="noopener noreferrer" className="text-on-surface-variant hover:text-on-surface hover:bg-secondary-container/20 px-4 py-2 flex items-center gap-3 transition-all rounded-lg cursor-pointer duration-300">
               <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>help</span>
-              <span className="font-label-sm">Support</span>
-            </Link>
-            <Link href="#" className="text-on-surface-variant hover:text-on-surface hover:bg-secondary-container/20 px-4 py-2 flex items-center gap-3 transition-all rounded-lg cursor-pointer duration-300">
+              <span className="font-label-sm">API Docs</span>
+            </a>
+            <Link href="/" className="text-on-surface-variant hover:text-on-surface hover:bg-secondary-container/20 px-4 py-2 flex items-center gap-3 transition-all rounded-lg cursor-pointer duration-300">
               <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>logout</span>
               <span className="font-label-sm">Sign Out</span>
             </Link>

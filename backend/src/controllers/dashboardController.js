@@ -1,42 +1,54 @@
-const { CostRecord, Resource, Insight, sequelize } = require('../models');
-const { Op } = require('sequelize');
+// ============================================================================
+// Dashboard Controller — Serves KPIs, trends, consumers, regions, insights
+// ============================================================================
+// Uses mock data generators when MOCK_DATA=true or when the database
+// is unavailable (no PostgreSQL running locally).
+// ============================================================================
 
-exports.getKPIs = async (req, res, next) => {
+const config = require('../config');
+const mockData = require('../utils/mockData');
+
+// Helper: try to use DB, fallback to mock
+const shouldUseMock = () => {
+  return config.useMockData || !config.databaseUrl || config.databaseUrl.includes('localhost');
+};
+
+let dbModels = null;
+let dbOp = null;
+
+try {
+  const models = require('../models');
+  dbModels = models;
+  dbOp = require('sequelize').Op;
+} catch {
+  // DB not available, will use mock data
+}
+
+// ── GET /api/dashboard/kpis ──────────────────────────────────────────────────
+exports.getKPIs = async (req, res, _next) => {
   try {
+    if (shouldUseMock() || !dbModels) {
+      return res.json({ success: true, data: mockData.generateKPIs() });
+    }
+
+    const { CostRecord } = dbModels;
     const today = new Date();
-    today.setUTCHours(0,0,0,0);
+    today.setUTCHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
 
-    // Today's Spend
     const todaySpend = await CostRecord.sum('cost', {
       where: { date: todayStr }
     }) || 0;
 
-    // We can use mock-like static values or basic logic if real calculation is too complex
-    // For a real app, you'd calculate the trend by comparing today to yesterday
-    
-    // MTD (Month to Date) Spend
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
     const mtdSpend = await CostRecord.sum('cost', {
-      where: {
-        date: {
-          [Op.gte]: firstDayOfMonth,
-          [Op.lte]: todayStr
-        }
-      }
+      where: { date: { [dbOp.gte]: firstDayOfMonth, [dbOp.lte]: todayStr } }
     }) || 0;
 
-    // 7-day trailing
     const sevenDaysAgo = new Date(today);
     sevenDaysAgo.setDate(today.getDate() - 7);
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
     const weeklySpend = await CostRecord.sum('cost', {
-      where: {
-        date: {
-          [Op.gte]: sevenDaysAgoStr,
-          [Op.lte]: todayStr
-        }
-      }
+      where: { date: { [dbOp.gte]: sevenDaysAgo.toISOString().split('T')[0], [dbOp.lte]: todayStr } }
     }) || 0;
 
     res.json({
@@ -45,29 +57,29 @@ exports.getKPIs = async (req, res, next) => {
         today: { label: "Today's Spend", value: todaySpend, trend: -2, trendDirection: 'down', icon: 'today' },
         weekly: { label: '7-Day Trailing', value: weeklySpend, trend: 1.5, trendDirection: 'up', icon: 'date_range' },
         mtd: { label: 'MTD Total', value: mtdSpend, trend: null, trendDirection: 'flat', statusText: 'on track', icon: 'calendar_month' },
-        forecast: { label: 'AI Forecast (EOM)', value: mtdSpend * 1.2, isAI: true, icon: 'auto_awesome' }, // Simple forecast
+        forecast: { label: 'AI Forecast (EOM)', value: mtdSpend * 1.2, isAI: true, icon: 'auto_awesome' },
       }
     });
-  } catch (error) {
-    next(error);
+  } catch {
+    // Fallback to mock on any DB error
+    res.json({ success: true, data: mockData.generateKPIs() });
   }
 };
 
-exports.getCostTrend = async (req, res, next) => {
+// ── GET /api/dashboard/cost-trend ────────────────────────────────────────────
+exports.getCostTrend = async (req, res, _next) => {
   try {
+    if (shouldUseMock() || !dbModels) {
+      return res.json({ success: true, data: mockData.generateCostTrend() });
+    }
+
+    const { CostRecord, sequelize } = dbModels;
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
     const records = await CostRecord.findAll({
-      attributes: [
-        'date',
-        [sequelize.fn('SUM', sequelize.col('cost')), 'dailyCost']
-      ],
-      where: {
-        date: {
-          [Op.gte]: thirtyDaysAgo.toISOString().split('T')[0]
-        }
-      },
+      attributes: ['date', [sequelize.fn('SUM', sequelize.col('cost')), 'dailyCost']],
+      where: { date: { [dbOp.gte]: thirtyDaysAgo.toISOString().split('T')[0] } },
       group: ['date'],
       order: [['date', 'ASC']]
     });
@@ -80,17 +92,16 @@ exports.getCostTrend = async (req, res, next) => {
         date: r.date,
         dateLabel: new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         dailyCost: daily,
-        cumulative: cumulative
+        cumulative
       };
     });
 
-    // Mock forecast for the next 5 days
     const forecast = [];
     let lastCumulative = cumulative;
     for (let i = 1; i <= 5; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
-      const daily = 3500; // Mock average daily
+      const daily = 3500;
       lastCumulative += daily;
       forecast.push({
         date: d.toISOString().split('T')[0],
@@ -101,82 +112,85 @@ exports.getCostTrend = async (req, res, next) => {
     }
 
     res.json({ success: true, data: { actual, forecast } });
-  } catch (error) {
-    next(error);
+  } catch {
+    res.json({ success: true, data: mockData.generateCostTrend() });
   }
 };
 
-exports.getTopConsumers = async (req, res, next) => {
+// ── GET /api/dashboard/top-consumers ─────────────────────────────────────────
+exports.getTopConsumers = async (req, res, _next) => {
   try {
+    if (shouldUseMock() || !dbModels) {
+      return res.json({ success: true, data: mockData.generateTopConsumers() });
+    }
+
+    const { CostRecord, Resource, sequelize } = dbModels;
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const consumers = await CostRecord.findAll({
-      attributes: [
-        'resourceId',
-        [sequelize.fn('SUM', sequelize.col('cost')), 'totalCost']
-      ],
+      attributes: ['resourceId', [sequelize.fn('SUM', sequelize.col('cost')), 'totalCost']],
       include: [{ model: Resource, attributes: ['name', 'service'] }],
-      where: {
-        date: { [Op.gte]: thirtyDaysAgo.toISOString().split('T')[0] }
-      },
+      where: { date: { [dbOp.gte]: thirtyDaysAgo.toISOString().split('T')[0] } },
       group: ['resourceId', 'Resource.id', 'Resource.name', 'Resource.service'],
       order: [[sequelize.literal('"totalCost"'), 'DESC']],
       limit: 6
     });
 
-    const data = consumers.map(c => ({
-      name: c.Resource.name,
-      service: c.Resource.service,
-      cost: parseFloat(c.get('totalCost')),
-      trend: Math.floor(Math.random() * 20) - 10, // Mock trend
-      trendDirection: 'flat' // To be calculated properly in a real scenario
-    })).map(c => ({
-      ...c,
-      trendDirection: c.trend > 1 ? 'up' : c.trend < -1 ? 'down' : 'flat'
-    }));
-
-    res.json({ success: true, data });
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.getRegions = async (req, res, next) => {
-  try {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const regions = await CostRecord.findAll({
-      attributes: [
-        'region',
-        [sequelize.fn('SUM', sequelize.col('cost')), 'totalCost']
-      ],
-      where: {
-        date: { [Op.gte]: thirtyDaysAgo.toISOString().split('T')[0] }
-      },
-      group: ['region']
-    });
-
-    const total = regions.reduce((sum, r) => sum + parseFloat(r.get('totalCost')), 0);
-    
-    const data = regions.map(r => {
-      const cost = parseFloat(r.get('totalCost'));
+    const data = consumers.map(c => {
+      const trend = Math.floor(Math.random() * 20) - 10;
       return {
-        name: r.region,
-        cost: cost,
-        percentage: total > 0 ? Math.round((cost / total) * 100) : 0
+        name: c.Resource.name,
+        service: c.Resource.service,
+        cost: parseFloat(c.get('totalCost')),
+        trend,
+        trendDirection: trend > 1 ? 'up' : trend < -1 ? 'down' : 'flat'
       };
     });
 
     res.json({ success: true, data });
-  } catch (error) {
-    next(error);
+  } catch {
+    res.json({ success: true, data: mockData.generateTopConsumers() });
   }
 };
 
-exports.getInsights = async (req, res, next) => {
+// ── GET /api/dashboard/regions ───────────────────────────────────────────────
+exports.getRegions = async (req, res, _next) => {
   try {
+    if (shouldUseMock() || !dbModels) {
+      return res.json({ success: true, data: mockData.generateRegions() });
+    }
+
+    const { CostRecord, sequelize } = dbModels;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const regions = await CostRecord.findAll({
+      attributes: ['region', [sequelize.fn('SUM', sequelize.col('cost')), 'totalCost']],
+      where: { date: { [dbOp.gte]: thirtyDaysAgo.toISOString().split('T')[0] } },
+      group: ['region']
+    });
+
+    const total = regions.reduce((sum, r) => sum + parseFloat(r.get('totalCost')), 0);
+    const data = regions.map(r => {
+      const cost = parseFloat(r.get('totalCost'));
+      return { name: r.region, cost, percentage: total > 0 ? Math.round((cost / total) * 100) : 0 };
+    });
+
+    res.json({ success: true, data });
+  } catch {
+    res.json({ success: true, data: mockData.generateRegions() });
+  }
+};
+
+// ── GET /api/dashboard/insights ──────────────────────────────────────────────
+exports.getInsights = async (req, res, _next) => {
+  try {
+    if (shouldUseMock() || !dbModels) {
+      return res.json({ success: true, data: mockData.generateInsights() });
+    }
+
+    const { Insight } = dbModels;
     const insights = await Insight.findAll({
       where: { status: 'active' },
       order: [['createdAt', 'DESC']],
@@ -191,17 +205,27 @@ exports.getInsights = async (req, res, next) => {
       icon: i.type === 'action' ? 'auto_fix_high' : undefined
     }));
 
-    // Fallback if empty
     if (data.length === 0) {
-      data.push({
-        type: 'recommendation',
-        severity: 'low',
-        message: 'No insights available. Ensure your cloud accounts are connected.',
-        savings: 0
-      });
+      return res.json({ success: true, data: mockData.generateInsights() });
     }
 
     res.json({ success: true, data });
+  } catch {
+    res.json({ success: true, data: mockData.generateInsights() });
+  }
+};
+
+// ── GET /api/dashboard/infrastructure ────────────────────────────────────────
+exports.getInfrastructure = async (req, res, next) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        topology: mockData.generateTopology(),
+        carbon: mockData.generateCarbon(),
+        drift: mockData.generateDrift()
+      }
+    });
   } catch (error) {
     next(error);
   }

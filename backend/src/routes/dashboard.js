@@ -11,5 +11,6 @@ router.get('/cost-trend', dashboardController.getCostTrend);
 router.get('/top-consumers', dashboardController.getTopConsumers);
 router.get('/regions', dashboardController.getRegions);
 router.get('/insights', dashboardController.getInsights);
+router.get('/infrastructure', dashboardController.getInfrastructure);
 
 module.exports = router;

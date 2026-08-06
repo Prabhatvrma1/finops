@@ -1,122 +1,187 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import gsap from "gsap";
 import { useQuery } from "@tanstack/react-query";
 
-const fetchDashboardData = async (endpoint: string) => {
-  const res = await fetch(`http://localhost:4000/api/dashboard/${endpoint}`);
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+const fetchData = async (endpoint: string) => {
+  const res = await fetch(`${API_BASE}/api/dashboard/${endpoint}`);
   if (!res.ok) throw new Error(`Failed to fetch ${endpoint}`);
   const json = await res.json();
   return json.data;
 };
 
+
+interface Consumer {
+  name: string;
+  service: string;
+  cost: number;
+  trend: number;
+  trendDirection: string;
+}
+
+interface Region {
+  name: string;
+  cost: number;
+  percentage: number;
+}
+
+interface TrendPoint {
+  date: string;
+  dateLabel: string;
+  dailyCost: number;
+  cumulative: number;
+}
+
 export default function DashboardPage() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [chartMode, setChartMode] = useState<"cumulative" | "daily">("cumulative");
 
-  const { data: kpis } = useQuery({
-    queryKey: ['kpis'],
-    queryFn: () => fetchDashboardData('kpis')
-  });
+  const { data: kpis } = useQuery({ queryKey: ["kpis"], queryFn: () => fetchData("kpis") });
+  const { data: consumers } = useQuery({ queryKey: ["top-consumers"], queryFn: () => fetchData("top-consumers") });
+  const { data: regions } = useQuery({ queryKey: ["regions"], queryFn: () => fetchData("regions") });
+  const { data: trend } = useQuery({ queryKey: ["cost-trend"], queryFn: () => fetchData("cost-trend") });
+  const { data: insights } = useQuery({ queryKey: ["insights"], queryFn: () => fetchData("insights") });
 
-  const { data: consumers, isLoading: consumersLoading } = useQuery({
-    queryKey: ['top-consumers'],
-    queryFn: () => fetchDashboardData('top-consumers')
-  });
-
+  // Animations
   useEffect(() => {
+    if (!containerRef.current) return;
     const ctx = gsap.context(() => {
-      // Counters
-      const counters = document.querySelectorAll(".counter");
-      counters.forEach((counter) => {
-        const target = parseFloat(counter.getAttribute("data-target") || "0");
-        if (target > 0) {
-          gsap.to(counter, {
-            innerHTML: target,
-            duration: 2,
-            ease: "power2.out",
-            snap: { innerHTML: 1 },
-            onUpdate: function () {
-              counter.innerHTML = Math.round(Number(this.targets()[0].innerHTML)).toLocaleString();
-            },
-          });
-        }
-      });
-
-      // Sequential fade in for AI insights
-      const insights = document.querySelectorAll(".insight-msg");
-      gsap.to(insights, {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        stagger: 1.5,
-        ease: "power2.out",
-        delay: 1,
-      });
+      gsap.from(".kpi-card", { opacity: 0, y: 30, duration: 0.7, stagger: 0.12, ease: "power3.out" });
+      gsap.from(".chart-panel", { opacity: 0, y: 20, duration: 0.8, delay: 0.4, ease: "power2.out" });
+      gsap.from(".insight-msg", { opacity: 0, y: 15, duration: 0.6, stagger: 0.8, delay: 1.2, ease: "power2.out" });
     }, containerRef);
-
     return () => ctx.revert();
-  }, []);
+  }, [kpis]);
+
+  // Build SVG path from trend data
+  const buildChartPath = () => {
+    if (!trend?.actual?.length) return { line: "", area: "", labels: [], forecast: "" };
+
+    const points: TrendPoint[] = trend.actual;
+    const forecastPts: TrendPoint[] = trend.forecast || [];
+    const allPoints = [...points, ...forecastPts];
+    const key = chartMode === "cumulative" ? "cumulative" : "dailyCost";
+
+    const maxVal = Math.max(...allPoints.map((p: TrendPoint) => (p as Record<string, number>)[key]));
+    const minVal = Math.min(...allPoints.map((p: TrendPoint) => (p as Record<string, number>)[key]));
+    const range = maxVal - minVal || 1;
+
+    const w = 800, h = 280, pad = 10;
+    const scaleX = (i: number) => pad + (i / (allPoints.length - 1)) * (w - 2 * pad);
+    const scaleY = (v: number) => pad + (1 - (v - minVal) / range) * (h - 2 * pad);
+
+    let line = "";
+    points.forEach((p, i) => {
+      const x = scaleX(i);
+      const y = scaleY((p as Record<string, number>)[key]);
+      line += i === 0 ? `M${x},${y}` : ` L${x},${y}`;
+    });
+
+    const lastActualIdx = points.length - 1;
+    let forecast = "";
+    if (forecastPts.length > 0) {
+      forecast = `M${scaleX(lastActualIdx)},${scaleY((points[lastActualIdx] as Record<string, number>)[key])}`;
+      forecastPts.forEach((p, i) => {
+        const x = scaleX(lastActualIdx + 1 + i);
+        const y = scaleY((p as Record<string, number>)[key]);
+        forecast += ` L${x},${y}`;
+      });
+    }
+
+    // Area fill under the actual line
+    const area = `${line} L${scaleX(lastActualIdx)},${h - pad} L${scaleX(0)},${h - pad} Z`;
+
+    // X-axis labels (every 5th point)
+    const labels = points
+      .filter((_, i) => i % 6 === 0 || i === points.length - 1)
+      .map((p) => ({
+        label: p.dateLabel,
+        x: scaleX(points.indexOf(p)),
+        y: h + 5
+      }));
+
+    return { line, area, forecast, labels };
+  };
+
+  const chart = buildChartPath();
+
+  const formatCost = (val: number) => {
+    if (val >= 1000) return `${(val / 1000).toFixed(1)}k`;
+    return val.toLocaleString();
+  };
+
+  const regionColors = [
+    { bg: "bg-primary/20", border: "border-primary/30", hover: "hover:bg-primary/30", text: "text-primary" },
+    { bg: "bg-secondary/20", border: "border-secondary/30", hover: "hover:bg-secondary/30", text: "text-secondary" },
+    { bg: "bg-tertiary/20", border: "border-tertiary/30", hover: "hover:bg-tertiary/30", text: "text-tertiary" },
+    { bg: "bg-outline-variant/30", border: "border-outline-variant/50", hover: "hover:bg-outline-variant/50", text: "text-on-surface-variant" },
+  ];
 
   return (
-    <div ref={containerRef} className="space-y-xl">
+    <div ref={containerRef} className="space-y-xl pb-16">
       {/* KPI Grid */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
         {/* Today */}
-        <div className="glass-card p-lg flex flex-col justify-between h-32 glow-effect relative overflow-hidden group">
+        <div className="kpi-card glass-card p-lg flex flex-col justify-between h-32 glow-effect relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 w-16 h-16 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-all"></div>
           <div className="flex justify-between items-start z-10">
             <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">{kpis?.today?.label || "Today's Spend"}</span>
-            <span className="material-symbols-outlined text-primary text-[20px]">{kpis?.today?.icon || 'today'}</span>
+            <span className="material-symbols-outlined text-primary text-[20px]">{kpis?.today?.icon || "today"}</span>
           </div>
           <div className="z-10 flex items-baseline gap-2">
-            <span className="font-headline-xl font-bold text-on-surface">$<span className="counter" data-target={kpis?.today?.value || "0"}>0</span></span>
-            <span className={`font-label-sm flex items-center ${kpis?.today?.trendDirection === 'down' ? 'text-primary' : 'text-error'}`}>
+            <span className="font-headline-xl font-bold text-on-surface">${formatCost(kpis?.today?.value || 0)}</span>
+            <span className={`font-label-sm flex items-center ${kpis?.today?.trendDirection === "down" ? "text-primary" : "text-error"}`}>
               <span className="material-symbols-outlined text-[14px]">
-                {kpis?.today?.trendDirection === 'down' ? 'arrow_downward' : 'arrow_upward'}
-              </span> 
+                {kpis?.today?.trendDirection === "down" ? "arrow_downward" : "arrow_upward"}
+              </span>
               {Math.abs(kpis?.today?.trend || 0)}%
             </span>
           </div>
         </div>
 
         {/* Weekly */}
-        <div className="glass-card p-lg flex flex-col justify-between h-32 relative overflow-hidden group">
+        <div className="kpi-card glass-card p-lg flex flex-col justify-between h-32 relative overflow-hidden group">
           <div className="flex justify-between items-start z-10">
             <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">{kpis?.weekly?.label || "7-Day Trailing"}</span>
-            <span className="material-symbols-outlined text-secondary text-[20px]">{kpis?.weekly?.icon || 'date_range'}</span>
+            <span className="material-symbols-outlined text-secondary text-[20px]">{kpis?.weekly?.icon || "date_range"}</span>
           </div>
           <div className="z-10 flex items-baseline gap-2">
-            <span className="font-headline-xl font-bold text-on-surface">$<span className="counter" data-target={kpis?.weekly?.value || "0"}>0</span></span>
-            <span className={`font-label-sm flex items-center ${kpis?.weekly?.trendDirection === 'down' ? 'text-primary' : 'text-error'}`}>
+            <span className="font-headline-xl font-bold text-on-surface">${formatCost(kpis?.weekly?.value || 0)}</span>
+            <span className={`font-label-sm flex items-center ${kpis?.weekly?.trendDirection === "down" ? "text-primary" : "text-error"}`}>
               <span className="material-symbols-outlined text-[14px]">
-                {kpis?.weekly?.trendDirection === 'down' ? 'arrow_downward' : 'arrow_upward'}
-              </span> 
+                {kpis?.weekly?.trendDirection === "down" ? "arrow_downward" : "arrow_upward"}
+              </span>
               {Math.abs(kpis?.weekly?.trend || 0)}%
             </span>
           </div>
         </div>
 
-        {/* Monthly */}
-        <div className="glass-card p-lg flex flex-col justify-between h-32 relative overflow-hidden group">
+        {/* MTD */}
+        <div className="kpi-card glass-card p-lg flex flex-col justify-between h-32 relative overflow-hidden group">
           <div className="flex justify-between items-start z-10">
             <span className="font-label-sm text-on-surface-variant uppercase tracking-wider">{kpis?.mtd?.label || "MTD Total"}</span>
-            <span className="material-symbols-outlined text-tertiary text-[20px]">{kpis?.mtd?.icon || 'calendar_month'}</span>
+            <span className="material-symbols-outlined text-tertiary text-[20px]">{kpis?.mtd?.icon || "calendar_month"}</span>
           </div>
           <div className="z-10 flex items-baseline gap-2">
-            <span className="font-headline-xl font-bold text-on-surface">$<span className="counter" data-target={kpis?.mtd?.value || "0"}>0</span></span>
+            <span className="font-headline-xl font-bold text-on-surface">${formatCost(kpis?.mtd?.value || 0)}</span>
             <span className="font-label-sm text-on-surface-variant">{kpis?.mtd?.statusText || "on track"}</span>
           </div>
         </div>
 
-        {/* Predicted */}
-        <div className="glass-card p-lg flex flex-col justify-between h-32 relative overflow-hidden group border-primary/30">
+        {/* AI Forecast */}
+        <div className="kpi-card glass-card p-lg flex flex-col justify-between h-32 relative overflow-hidden group border-primary/30">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent z-0"></div>
           <div className="flex justify-between items-start z-10">
-            <span className="font-label-sm text-primary uppercase tracking-wider flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">{kpis?.forecast?.icon || 'auto_awesome'}</span> {kpis?.forecast?.label || 'AI Forecast (EOM)'}</span>
+            <span className="font-label-sm text-primary uppercase tracking-wider flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">{kpis?.forecast?.icon || "auto_awesome"}</span>
+              {kpis?.forecast?.label || "AI Forecast (EOM)"}
+            </span>
           </div>
           <div className="z-10 flex items-baseline gap-2">
-            <span className="font-headline-xl font-bold text-primary text-glow">$<span className="counter" data-target={kpis?.forecast?.value || "0"}>0</span></span>
+            <span className="font-headline-xl font-bold text-primary text-glow">${formatCost(kpis?.forecast?.value || 0)}</span>
           </div>
         </div>
       </section>
@@ -124,48 +189,45 @@ export default function DashboardPage() {
       {/* Main Layout: Chart + AI Panel */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
         {/* Chart Area */}
-        <div className="glass-card p-lg lg:col-span-2 min-h-[400px] flex flex-col">
+        <div className="chart-panel glass-card p-lg lg:col-span-2 min-h-[400px] flex flex-col">
           <div className="flex justify-between items-center mb-md border-b border-white/5 pb-sm">
             <h3 className="font-title-md font-medium text-on-surface">30-Day Cost Trend</h3>
             <div className="flex gap-2">
-              <span className="bg-primary-container/20 text-primary font-label-sm px-3 py-1 rounded-full cursor-pointer hover:bg-primary-container/40 transition-colors">Cumulative</span>
-              <span className="text-on-surface-variant font-label-sm px-3 py-1 cursor-pointer hover:text-on-surface">Daily</span>
+              <button
+                onClick={() => setChartMode("cumulative")}
+                className={`font-label-sm px-3 py-1 rounded-full cursor-pointer transition-colors ${chartMode === "cumulative" ? "bg-primary-container/20 text-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+              >
+                Cumulative
+              </button>
+              <button
+                onClick={() => setChartMode("daily")}
+                className={`font-label-sm px-3 py-1 rounded-full cursor-pointer transition-colors ${chartMode === "daily" ? "bg-primary-container/20 text-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+              >
+                Daily
+              </button>
             </div>
           </div>
-          <div className="flex-1 relative w-full h-full min-h-[300px] flex items-end">
-            <div className="absolute inset-0 flex items-end pb-8">
-              <svg className="w-full h-full drop-shadow-[0_0_15px_rgba(95,215,227,0.3)]" height="100%" preserveAspectRatio="none" viewBox="0 0 800 300" width="100%">
-                <defs>
-                  <linearGradient id="chartGrad" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="rgba(95, 215, 227, 0.4)"></stop>
-                    <stop offset="100%" stopColor="rgba(95, 215, 227, 0.0)"></stop>
-                  </linearGradient>
-                </defs>
-                <path d="M0,300 L0,250 C100,220 200,280 300,200 C400,120 500,180 600,100 C700,20 750,80 800,50 L800,300 Z" fill="url(#chartGrad)"></path>
-                <path d="M0,250 C100,220 200,280 300,200 C400,120 500,180 600,100 C700,20 750,80 800,50" fill="none" stroke="#5fd7e3" strokeWidth="3"></path>
-                <path d="M600,100 L800,20" fill="none" stroke="#ffb4a3" strokeDasharray="5,5" strokeWidth="2"></path>
-              </svg>
-            </div>
+          <div className="flex-1 relative w-full min-h-[300px]">
+            <svg className="w-full h-full drop-shadow-[0_0_15px_rgba(95,215,227,0.3)]" preserveAspectRatio="none" viewBox="0 0 800 290">
+              <defs>
+                <linearGradient id="chartGrad" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="rgba(95, 215, 227, 0.4)"></stop>
+                  <stop offset="100%" stopColor="rgba(95, 215, 227, 0.0)"></stop>
+                </linearGradient>
+              </defs>
+              {chart.area && <path d={chart.area} fill="url(#chartGrad)" />}
+              {chart.line && <path d={chart.line} fill="none" stroke="#5fd7e3" strokeWidth="2.5" />}
+              {chart.forecast && <path d={chart.forecast} fill="none" stroke="#ffb4a3" strokeDasharray="6,4" strokeWidth="2" />}
+            </svg>
             {/* X Axis Labels */}
             <div className="absolute bottom-0 w-full flex justify-between text-on-surface-variant font-label-sm px-4">
-              <span>Oct 1</span>
-              <span>Oct 8</span>
-              <span>Oct 15</span>
-              <span>Oct 22</span>
-              <span>Oct 29</span>
+              {chart.labels?.map((l, i) => <span key={i}>{l.label}</span>)}
             </div>
-            {/* Hover Tooltip Simulator */}
-            <div className="absolute left-[60%] top-[40%] bg-surface-container-high border border-outline-variant/50 p-2 rounded shadow-lg backdrop-blur-md transform -translate-x-1/2 -translate-y-full">
-              <div className="font-label-sm text-on-surface-variant">Oct 18</div>
-              <div className="font-body-md text-on-surface font-bold">$2,845.00</div>
-            </div>
-            <div className="absolute left-[60%] top-[40%] w-3 h-3 bg-primary rounded-full shadow-[0_0_10px_#5fd7e3] transform -translate-x-1/2 -translate-y-1/2"></div>
-            <div className="absolute left-[60%] top-[40%] bottom-8 w-px bg-primary/30 border-dashed border-l"></div>
           </div>
         </div>
 
         {/* AI Insight Panel */}
-        <div className="glass-card p-lg flex flex-col relative overflow-hidden bg-gradient-to-b from-surface-container/60 to-surface/80">
+        <div className="chart-panel glass-card p-lg flex flex-col relative overflow-hidden bg-gradient-to-b from-surface-container/60 to-surface/80">
           <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
             <span className="material-symbols-outlined text-[120px]">memory</span>
           </div>
@@ -173,29 +235,45 @@ export default function DashboardPage() {
             <span className="material-symbols-outlined text-primary animate-pulse">psychology</span>
             <h3 className="font-title-md font-medium text-primary">Copilot Insights</h3>
           </div>
-          <div className="flex-1 space-y-md font-body-md text-on-surface/90 overflow-y-auto pr-2" id="typewriter-container">
-            <div className="insight-msg p-3 bg-surface-container-high/50 rounded-lg border border-white/5 opacity-0 translate-y-4">
-              <p className="text-sm"><strong className="text-tertiary">Anomaly Detected:</strong> EKS Cluster <code className="bg-black/30 px-1 rounded text-primary">us-east-prod-1</code> experienced a 45% spend spike over the last 12 hours.</p>
-            </div>
-            <div className="insight-msg p-3 bg-surface-container-high/50 rounded-lg border border-white/5 opacity-0 translate-y-4">
-              <p className="text-sm"><strong className="text-secondary">Recommendation:</strong> Downscale unused node groups in <code className="bg-black/30 px-1 rounded text-primary">us-west-dev</code>. Estimated savings: $450/mo.</p>
-            </div>
-            <div className="insight-msg p-3 bg-primary/10 rounded-lg border border-primary/20 opacity-0 translate-y-4">
-              <p className="text-sm flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-primary">auto_fix_high</span> Generating optimization script...</p>
-            </div>
+          <div className="flex-1 space-y-md font-body-md text-on-surface/90 overflow-y-auto pr-2">
+            {(insights || []).map((insight: { type: string; severity?: string; message: string; savings?: number; icon?: string }, i: number) => (
+              <div
+                key={i}
+                className={`insight-msg p-3 rounded-lg border ${
+                  insight.type === "anomaly"
+                    ? "bg-error/10 border-error/20"
+                    : insight.type === "action"
+                    ? "bg-primary/10 border-primary/20"
+                    : "bg-surface-container-high/50 border-white/5"
+                }`}
+              >
+                <p className="text-sm" dangerouslySetInnerHTML={{
+                  __html: `<strong class="${
+                    insight.type === "anomaly" ? "text-tertiary" : insight.type === "action" ? "text-primary" : "text-secondary"
+                  }">${insight.type === "anomaly" ? "Anomaly Detected:" : insight.type === "action" ? "⚡ Action:" : "Recommendation:"}</strong> ${insight.message}`
+                }} />
+                {insight.savings && insight.savings > 0 && (
+                  <span className="mt-2 inline-block bg-primary/10 text-primary font-label-sm px-2 py-0.5 rounded-full">
+                    Save ~${insight.savings}/mo
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
           <div className="mt-md pt-sm border-t border-white/5">
             <div className="flex bg-surface-container-lowest rounded-md border-b-2 border-transparent focus-within:border-primary transition-colors p-1">
               <input className="bg-transparent border-none focus:ring-0 text-label-sm w-full outline-none px-2 text-on-surface" placeholder="Ask AI about your spend..." type="text" />
-              <button className="text-primary hover:bg-primary/10 p-1 rounded transition-colors"><span className="material-symbols-outlined text-[18px]">send</span></button>
+              <button className="text-primary hover:bg-primary/10 p-1 rounded transition-colors cursor-pointer">
+                <span className="material-symbols-outlined text-[18px]">send</span>
+              </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Bottom Row: Table & Treemap */}
+      {/* Bottom Row: Table & Regions */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-gutter">
-        {/* Resource Table */}
+        {/* Top Consumer Table */}
         <div className="glass-card p-0 flex flex-col overflow-hidden">
           <div className="p-lg border-b border-white/5">
             <h3 className="font-title-md font-medium text-on-surface">Top Consumers</h3>
@@ -211,24 +289,23 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="font-body-md text-on-surface">
-                {consumersLoading ? (
-                  <tr><td colSpan={4} className="p-4 text-center">Loading...</td></tr>
-                ) : consumers?.map((c: { name: string; service: string; cost: number; trendDirection: string; trend: number }, i: number) => {
-                  const colors = ['bg-error', 'bg-primary', 'bg-on-surface-variant', 'bg-secondary', 'bg-tertiary'];
-                  const colorClass = colors[i % colors.length];
+                {(consumers || []).map((c: Consumer, i: number) => {
+                  const colors = ["bg-error", "bg-primary", "bg-on-surface-variant", "bg-secondary", "bg-tertiary", "bg-outline-variant"];
                   return (
                     <tr key={i} className="border-b border-white/5 hover:bg-primary/5 transition-colors group">
                       <td className="p-4 flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${colorClass}`}></div>
-                        {c.name}
+                        <div className={`w-2 h-2 rounded-full ${colors[i % colors.length]}`}></div>
+                        <span className="font-mono text-sm">{c.name}</span>
                       </td>
                       <td className="p-4 text-on-surface-variant">{c.service}</td>
-                      <td className="p-4 text-right font-medium">${c.cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                      <td className={`p-4 text-right flex items-center justify-end gap-1 ${c.trendDirection === 'up' ? 'text-error' : c.trendDirection === 'down' ? 'text-primary' : 'text-on-surface-variant'}`}>
-                        <span className="material-symbols-outlined text-[16px]">
-                          {c.trendDirection === 'up' ? 'trending_up' : c.trendDirection === 'down' ? 'trending_down' : 'trending_flat'}
-                        </span> 
-                        {c.trend > 0 ? '+' : ''}{c.trend}%
+                      <td className="p-4 text-right font-medium">${c.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className={`p-4 text-right ${c.trendDirection === "up" ? "text-error" : c.trendDirection === "down" ? "text-primary" : "text-on-surface-variant"}`}>
+                        <span className="flex items-center justify-end gap-1">
+                          <span className="material-symbols-outlined text-[16px]">
+                            {c.trendDirection === "up" ? "trending_up" : c.trendDirection === "down" ? "trending_down" : "trending_flat"}
+                          </span>
+                          {c.trend > 0 ? "+" : ""}{c.trend}%
+                        </span>
                       </td>
                     </tr>
                   );
@@ -238,38 +315,30 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* CSS Treemap Proxy */}
+        {/* Cost by Region - Dynamic */}
         <div className="glass-card p-lg flex flex-col h-full">
           <div className="flex justify-between items-center mb-md">
             <h3 className="font-title-md font-medium text-on-surface">Cost by Region</h3>
             <span className="material-symbols-outlined text-on-surface-variant">public</span>
           </div>
           <div className="flex-1 grid grid-cols-3 grid-rows-2 gap-2 rounded-lg overflow-hidden">
-            <div className="col-span-2 row-span-2 bg-primary/20 border border-primary/30 p-3 flex flex-col justify-between hover:bg-primary/30 transition-colors cursor-pointer relative group">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <span className="font-label-sm text-on-surface-variant">us-east-1</span>
-              <div>
-                <div className="font-title-md font-bold">45%</div>
-                <div className="font-label-sm text-primary">$40,243</div>
-              </div>
-            </div>
-            <div className="col-span-1 row-span-1 bg-secondary/20 border border-secondary/30 p-3 flex flex-col justify-between hover:bg-secondary/30 transition-colors cursor-pointer">
-              <span className="font-label-sm text-on-surface-variant">eu-west-1</span>
-              <div>
-                <div className="font-title-md font-bold">25%</div>
-                <div className="font-label-sm text-secondary">$22,357</div>
-              </div>
-            </div>
-            <div className="col-span-1 row-span-1 grid grid-cols-2 gap-2">
-              <div className="bg-tertiary/20 border border-tertiary/30 p-2 flex flex-col justify-end hover:bg-tertiary/30 transition-colors cursor-pointer">
-                <span className="font-label-sm text-[10px] text-on-surface-variant leading-none">ap-south</span>
-                <div className="font-body-md font-bold leading-none mt-1">15%</div>
-              </div>
-              <div className="bg-outline-variant/30 border border-outline-variant/50 p-2 flex flex-col justify-end hover:bg-outline-variant/50 transition-colors cursor-pointer">
-                <span className="font-label-sm text-[10px] text-on-surface-variant leading-none">other</span>
-                <div className="font-body-md font-bold leading-none mt-1">15%</div>
-              </div>
-            </div>
+            {(regions || []).map((r: Region, i: number) => {
+              const color = regionColors[i % regionColors.length];
+              const isLarge = i === 0;
+              return (
+                <div
+                  key={r.name}
+                  className={`${isLarge ? "col-span-2 row-span-2" : ""} ${color.bg} ${color.border} border p-3 flex flex-col justify-between ${color.hover} transition-colors cursor-pointer relative group`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                  <span className="font-label-sm text-on-surface-variant">{r.name}</span>
+                  <div>
+                    <div className="font-title-md font-bold">{r.percentage}%</div>
+                    <div className={`font-label-sm ${color.text}`}>${r.cost.toLocaleString()}</div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
