@@ -55,7 +55,7 @@ exports.sendAnomalyAlert = async (anomaly) => {
  */
 async function sendSlackNotification(payload) {
   const url = process.env.SLACK_WEBHOOK_URL;
-  if (!url) return;
+  if (!url) { return; }
 
   const slackBody = {
     attachments: [
