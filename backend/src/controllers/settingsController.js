@@ -52,7 +52,7 @@ exports.getCloudAccounts = async (req, res, next) => {
 // POST /api/settings/cloud-accounts
 exports.saveCloudAccount = async (req, res, next) => {
   try {
-    const { provider, name, accessKeyId, _secretAccessKey, roleArn, region, projectId, _serviceAccountJson } = req.body;
+    const { provider, name, accessKeyId, roleArn, region, projectId } = req.body;
 
     if (!provider || !name) {
       return res.status(400).json({
