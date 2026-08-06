@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Copy package files first for Docker layer caching
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install
 
 # Copy source and build
 COPY . .
