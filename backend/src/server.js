@@ -189,6 +189,8 @@ app.get('*', (req, res) => {
 // ============================================================================
 app.use(errorHandler);
 
+const { initScheduler } = require('./jobs/cronScheduler');
+
 // ============================================================================
 // Start Server
 // ============================================================================
@@ -210,6 +212,9 @@ if (process.env.NODE_ENV !== 'test') {
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
     `);
+    
+    // Start automated cloud data sync and ML anomaly audit scheduler
+    initScheduler();
   });
 }
 
