@@ -126,7 +126,7 @@ jobs:
   # Stage 3a: Build Docker Images (always runs to validate Dockerfiles)
   # ==========================================================================
   build:
-    name: "\ud83d\udc33 Build & Push Images"
+    name: "Build & Push Images"
     runs-on: ubuntu-latest
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
