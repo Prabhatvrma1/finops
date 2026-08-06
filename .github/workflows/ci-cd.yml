@@ -123,10 +123,10 @@ jobs:
           python -c "from app.ml.anomaly_detector import detect_anomalies; print('Anomaly Detector OK')"
 
   # ==========================================================================
-  # Stage 3: Build & Push Docker Images
+  # Stage 3a: Build Docker Images (always runs to validate Dockerfiles)
   # ==========================================================================
   build:
-    name: "🐳 Build & Push Images"
+    name: "\ud83d\udc33 Build & Push Images"
     runs-on: ubuntu-latest
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -135,10 +135,25 @@ jobs:
       id-token: write
       contents: read
 
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+
     steps:
       - uses: actions/checkout@v4
 
+      # Always build Docker images to validate Dockerfiles are correct
+      - name: Build Backend Image
+        run: docker build -t cloudcostiq/backend:${{ github.sha }} ./backend
+
+      - name: Build Frontend Image
+        run: docker build -t cloudcostiq/frontend:${{ github.sha }} ./frontend
+
+      - name: Build Python Analytics Image
+        run: docker build -t cloudcostiq/python-analytics:${{ github.sha }} ./python
+
+      # Only authenticate and push to ECR when AWS credentials are configured
       - name: Configure AWS Credentials
+        id: aws-creds
         uses: aws-actions/configure-aws-credentials@v4
         continue-on-error: true
         with:
@@ -147,34 +162,47 @@ jobs:
 
       - name: Login to Amazon ECR
         id: ecr-login
+        if: steps.aws-creds.outcome == 'success'
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & Push Backend
-        env:
-          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Push Backend to ECR
+        if: steps.aws-creds.outcome == 'success'
         run: |
-          docker build -t $REGISTRY/cloudcostiq/backend:$IMAGE_TAG -t $REGISTRY/cloudcostiq/backend:latest ./backend
+          REGISTRY=${{ steps.ecr-login.outputs.registry }}
+          docker tag cloudcostiq/backend:$IMAGE_TAG $REGISTRY/cloudcostiq/backend:$IMAGE_TAG
+          docker tag cloudcostiq/backend:$IMAGE_TAG $REGISTRY/cloudcostiq/backend:latest
           docker push $REGISTRY/cloudcostiq/backend:$IMAGE_TAG
           docker push $REGISTRY/cloudcostiq/backend:latest
 
-      - name: Build & Push Frontend
-        env:
-          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Push Frontend to ECR
+        if: steps.aws-creds.outcome == 'success'
         run: |
-          docker build -t $REGISTRY/cloudcostiq/frontend:$IMAGE_TAG -t $REGISTRY/cloudcostiq/frontend:latest ./frontend
+          REGISTRY=${{ steps.ecr-login.outputs.registry }}
+          docker tag cloudcostiq/frontend:$IMAGE_TAG $REGISTRY/cloudcostiq/frontend:$IMAGE_TAG
+          docker tag cloudcostiq/frontend:$IMAGE_TAG $REGISTRY/cloudcostiq/frontend:latest
           docker push $REGISTRY/cloudcostiq/frontend:$IMAGE_TAG
           docker push $REGISTRY/cloudcostiq/frontend:latest
 
-      - name: Build & Push Python Analytics
-        env:
-          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Push Python Analytics to ECR
+        if: steps.aws-creds.outcome == 'success'
         run: |
-          docker build -t $REGISTRY/cloudcostiq/python-analytics:$IMAGE_TAG -t $REGISTRY/cloudcostiq/python-analytics:latest ./python
+          REGISTRY=${{ steps.ecr-login.outputs.registry }}
+          docker tag cloudcostiq/python-analytics:$IMAGE_TAG $REGISTRY/cloudcostiq/python-analytics:$IMAGE_TAG
+          docker tag cloudcostiq/python-analytics:$IMAGE_TAG $REGISTRY/cloudcostiq/python-analytics:latest
           docker push $REGISTRY/cloudcostiq/python-analytics:$IMAGE_TAG
           docker push $REGISTRY/cloudcostiq/python-analytics:latest
+
+      - name: Summary
+        run: |
+          echo "### Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend image: cloudcostiq/backend:$IMAGE_TAG ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend image: cloudcostiq/frontend:$IMAGE_TAG ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Analytics image: cloudcostiq/python-analytics:$IMAGE_TAG ✅" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.aws-creds.outcome }}" == "success" ]; then
+            echo "- ECR Push: ✅ Pushed to AWS ECR" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ECR Push: ⏭️ Skipped (AWS_ROLE_ARN not configured)" >> $GITHUB_STEP_SUMMARY
+          fi
 
   # ==========================================================================
   # Stage 4: Deploy to Kubernetes
