@@ -273,7 +273,8 @@ jobs:
           fi
 
       - name: Notify Slack
-        if: always() && secrets.SLACK_WEBHOOK_URL != ''
+        if: steps.aws-creds.outcome == 'success'
+        continue-on-error: true
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}

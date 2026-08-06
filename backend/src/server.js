@@ -26,6 +26,7 @@ const logger = require('./utils/logger');
 const dashboardRoutes = require('./routes/dashboard');
 const infrastructureRoutes = require('./routes/infrastructure');
 const authRoutes = require('./routes/auth');
+const settingsRoutes = require('./routes/settings');
 const { errorHandler } = require('./middleware/errorHandler');
 const { swaggerUi, swaggerDocs } = require('./docs/swagger');
 const promClient = require('prom-client');
@@ -141,6 +142,7 @@ app.use(express.static(path.join(__dirname, '../../frontend')));
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/infrastructure', infrastructureRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
