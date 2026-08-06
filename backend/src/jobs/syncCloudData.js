@@ -1,43 +1,39 @@
 const awsCostExplorer = require('../services/awsCostExplorer');
+const gcpBilling = require('../services/gcpBilling');
 const { Resource, CostRecord } = require('../models');
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 
 /**
- * Syncs the last 30 days of AWS Cost and Usage data into the local PostgreSQL database.
+ * Syncs the last 30 days of AWS and GCP Cost and Usage data into the database.
  */
 async function syncCloudData() {
-  logger.info('Starting AWS Cloud Data Sync Job...');
+  logger.info('Starting Cloud Data Sync Job (AWS & GCP)...');
   
-  try {
-    // 1. Calculate Date Range (Last 30 Days)
-    const today = new Date();
-    const endDateStr = today.toISOString().split('T')[0];
-    
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    const startDateStr = thirtyDaysAgo.toISOString().split('T')[0];
+  // Calculate Date Range (Last 30 Days)
+  const today = new Date();
+  const endDateStr = today.toISOString().split('T')[0];
+  
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(today.getDate() - 30);
+  const startDateStr = thirtyDaysAgo.toISOString().split('T')[0];
 
-    // 2. Fetch from AWS Service
-    const results = await awsCostExplorer.getDailyCostAndUsage(startDateStr, endDateStr);
+  let awsRecordsCreated = 0;
+  let gcpRecordsCreated = 0;
+
+  // 1. Sync AWS Costs
+  try {
+    const awsResults = await awsCostExplorer.getDailyCostAndUsage(startDateStr, endDateStr);
     
-    // 3. Process and Save to Database
-    let recordsCreated = 0;
-    
-    for (const result of results) {
+    for (const result of awsResults) {
       const date = result.TimePeriod.Start;
-      
       for (const group of result.Groups) {
-        // Group Keys: ["Amazon Elastic Compute Cloud - Compute", "us-east-1"]
         const serviceName = group.Keys[0];
         const region = group.Keys[1];
         const amount = parseFloat(group.Metrics.UnblendedCost.Amount);
         
-        if (amount <= 0) {continue;} // Skip zero-cost rows
+        if (amount <= 0) { continue; }
 
-        // Find or create the corresponding Resource in our DB
-        // In a real app, AWS might return resource-level ARNs if enabled.
-        // For this demo, we group by Service and treat the service as the "Resource".
         const [resource] = await Resource.findOrCreate({
           where: { name: serviceName, region: region },
           defaults: {
@@ -49,21 +45,14 @@ async function syncCloudData() {
           }
         });
 
-        // Upsert the CostRecord
-        // If we run this script multiple times, we want to update the existing cost for that day,
-        // not create a duplicate record.
         const [record, created] = await CostRecord.findOrCreate({
-          where: {
-            date: date,
-            resourceId: resource.id,
-            region: region
-          },
+          where: { date, resourceId: resource.id, region },
           defaults: {
             id: uuidv4(),
             cost: amount,
-            date: date,
+            date,
             resourceId: resource.id,
-            region: region
+            region
           }
         });
         
@@ -71,15 +60,57 @@ async function syncCloudData() {
           record.cost = amount;
           await record.save();
         }
-        
-        if (created) {recordsCreated++;}
+        if (created) { awsRecordsCreated++; }
       }
     }
-    
-    logger.info(`✅ AWS Cloud Data Sync Job Completed. Synced ${recordsCreated} new daily records.`);
+    logger.info(`✅ AWS Sync Completed. Synced ${awsRecordsCreated} records.`);
   } catch (error) {
     logger.error('❌ Failed to sync AWS cloud data:', error);
   }
+
+  // 2. Sync GCP Costs
+  try {
+    const gcpResults = await gcpBilling.getDailyCostAndUsage(startDateStr, endDateStr);
+    
+    for (const item of gcpResults) {
+      const { date, service, region, cost } = item;
+      
+      if (cost <= 0) { continue; }
+
+      const [resource] = await Resource.findOrCreate({
+        where: { name: `${service} (GCP)`, region: region },
+        defaults: {
+          id: uuidv4(),
+          name: `${service} (GCP)`,
+          service: service,
+          region: region,
+          status: 'running'
+        }
+      });
+
+      const [record, created] = await CostRecord.findOrCreate({
+        where: { date, resourceId: resource.id, region },
+        defaults: {
+          id: uuidv4(),
+          cost: cost,
+          date,
+          resourceId: resource.id,
+          region
+        }
+      });
+
+      if (!created && record.cost !== cost) {
+        record.cost = cost;
+        await record.save();
+      }
+      if (created) { gcpRecordsCreated++; }
+    }
+    logger.info(`✅ GCP Sync Completed. Synced ${gcpRecordsCreated} records.`);
+  } catch (error) {
+    logger.error('❌ Failed to sync GCP cloud data:', error);
+  }
+
+  logger.info(`✅ Cloud Data Sync completed. AWS: ${awsRecordsCreated}, GCP: ${gcpRecordsCreated}`);
 }
 
 // Allow running directly from command line for testing
