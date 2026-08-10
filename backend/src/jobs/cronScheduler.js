@@ -53,7 +53,11 @@ function initScheduler() {
   cron.schedule('0 0 * * *', async () => {
     logger.info('Cron Triggered: Daily Cloud Data Sync & Audit');
     try {
-      await syncCloudData();
+      if (!config.useMockData) {
+        await syncCloudData();
+      } else {
+        logger.info('Skipping cloud data sync (mock mode active).');
+      }
       await auditAnomalies();
     } catch (error) {
       logger.error('Error during scheduled daily cloud data sync:', error);

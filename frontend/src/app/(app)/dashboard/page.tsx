@@ -39,11 +39,12 @@ export default function DashboardPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [chartMode, setChartMode] = useState<"cumulative" | "daily">("cumulative");
 
-  const { data: kpis } = useQuery({ queryKey: ["kpis"], queryFn: () => fetchData("kpis") });
-  const { data: consumers } = useQuery({ queryKey: ["top-consumers"], queryFn: () => fetchData("top-consumers") });
-  const { data: regions } = useQuery({ queryKey: ["regions"], queryFn: () => fetchData("regions") });
+  const { data: kpis, isLoading: kpisLoading } = useQuery({ queryKey: ["kpis"], queryFn: () => fetchData("kpis") });
+  const { data: consumers, isLoading: consumersLoading } = useQuery({ queryKey: ["top-consumers"], queryFn: () => fetchData("top-consumers") });
+  const { data: regions, isLoading: regionsLoading } = useQuery({ queryKey: ["regions"], queryFn: () => fetchData("regions") });
   const { data: trend } = useQuery({ queryKey: ["cost-trend"], queryFn: () => fetchData("cost-trend") });
   const { data: insights } = useQuery({ queryKey: ["insights"], queryFn: () => fetchData("insights") });
+
 
   // Animations
   useEffect(() => {
@@ -124,6 +125,17 @@ export default function DashboardPage() {
     <div ref={containerRef} className="space-y-xl pb-16">
       {/* KPI Grid */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
+        {kpisLoading ? (
+          <>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="kpi-card glass-card p-lg flex flex-col justify-between h-32 animate-pulse">
+                <div className="h-3 bg-surface-variant/50 rounded w-24"></div>
+                <div className="h-8 bg-surface-variant/30 rounded w-32"></div>
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
         {/* Today */}
         <div className="kpi-card glass-card p-lg flex flex-col justify-between h-32 glow-effect relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 w-16 h-16 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-all"></div>
@@ -184,6 +196,8 @@ export default function DashboardPage() {
             <span className="font-headline-xl font-bold text-primary text-glow">${formatCost(kpis?.forecast?.value || 0)}</span>
           </div>
         </div>
+          </>
+        )}
       </section>
 
       {/* Main Layout: Chart + AI Panel */}
@@ -289,7 +303,11 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="font-body-md text-on-surface">
-                {(consumers || []).map((c: Consumer, i: number) => {
+                {consumersLoading ? (
+                  <tr><td colSpan={4} className="p-8 text-center text-on-surface-variant">
+                    <span className="material-symbols-outlined animate-spin text-primary mr-2">sync</span>Loading consumers...
+                  </td></tr>
+                ) : (consumers || []).map((c: Consumer, i: number) => {
                   const colors = ["bg-error", "bg-primary", "bg-on-surface-variant", "bg-secondary", "bg-tertiary", "bg-outline-variant"];
                   return (
                     <tr key={i} className="border-b border-white/5 hover:bg-primary/5 transition-colors group">
@@ -322,7 +340,11 @@ export default function DashboardPage() {
             <span className="material-symbols-outlined text-on-surface-variant">public</span>
           </div>
           <div className="flex-1 grid grid-cols-3 grid-rows-2 gap-2 rounded-lg overflow-hidden">
-            {(regions || []).map((r: Region, i: number) => {
+            {regionsLoading ? (
+              <div className="col-span-3 row-span-2 flex items-center justify-center text-on-surface-variant animate-pulse">
+                <span className="material-symbols-outlined text-[48px] text-primary/20">public</span>
+              </div>
+            ) : (regions || []).map((r: Region, i: number) => {
               const color = regionColors[i % regionColors.length];
               const isLarge = i === 0;
               return (
