@@ -183,7 +183,41 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ success: false, error: 'Endpoint not found' });
   }
-  res.sendFile(path.join(__dirname, '../../frontend/index.html'));
+  const fs = require('fs');
+  const indexPath = path.join(__dirname, '../../frontend/index.html');
+  const outIndexPath = path.join(__dirname, '../../frontend/out/index.html');
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  if (fs.existsSync(outIndexPath)) {
+    return res.sendFile(outIndexPath);
+  }
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>CloudCostIQ API Server</title>
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; background: #001719; color: #bfeaef; padding: 3rem; line-height: 1.6; }
+          a { color: #5fd7e3; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+          .card { background: rgba(13, 58, 63, 0.5); border: 1px solid rgba(255,255,255,0.1); padding: 2rem; border-radius: 1rem; max-width: 600px; }
+          .badge { background: #0fa4af; color: #002022; padding: 0.2rem 0.6rem; border-radius: 0.25rem; font-weight: bold; font-size: 0.8rem; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h2>☁️ CloudCostIQ API Server <span class="badge">ONLINE</span></h2>
+          <p>The Express backend API server is running successfully.</p>
+          <ul>
+            <li><strong>Next.js Frontend:</strong> <a href="http://localhost:3000">http://localhost:3000</a></li>
+            <li><strong>Swagger API Docs:</strong> <a href="/api-docs">http://localhost:4000/api-docs</a></li>
+            <li><strong>Health Endpoint:</strong> <a href="/api/health">http://localhost:4000/api/health</a></li>
+          </ul>
+        </div>
+      </body>
+    </html>
+  `);
 });
 
 // ============================================================================

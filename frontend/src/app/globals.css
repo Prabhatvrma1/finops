@@ -95,11 +95,6 @@
   --color-tertiary-fixed: #ffdad2;
 
   /* Custom Spacing */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 40px;
   --spacing-gutter: 24px;
   --spacing-margin-desktop: 48px;
   --spacing-margin-mobile: 16px;
